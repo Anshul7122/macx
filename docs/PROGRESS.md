@@ -19,13 +19,13 @@ finish with a plain-language report (docs/REPORT-0.2.md).
 - [x] Legacy status no longer counts box processes
 
 ## Remaining
-- [ ] Commit this work
-- [ ] App defaults to the Boxes page; version 0.2.0
-- [ ] Docs: README (Boxes section rewrite), docs/HOW-IT-WORKS.md section 7, docs/USER-GUIDE.md (plain language)
-- [ ] Build .dmg + install to /Applications, open it, check Boxes page, quit it
-- [ ] Final report docs/REPORT-0.2.md (plain language, what/why/how to use/limits)
-- [ ] Close everything (no Wine, no MacX running); delete the auto-resume cron job
-- [ ] Do NOT push to GitHub without the user's OK
+- [x] Commit this work
+- [x] App defaults to the Boxes page; version 0.2.0
+- [x] Docs: README (Boxes section rewrite), docs/HOW-IT-WORKS.md section 7, docs/USER-GUIDE.md (plain language)
+- [x] Build .dmg + install to ~/Applications, open it, check Boxes page, quit it
+- [x] Final report docs/REPORT-0.2.md (plain language, what/why/how to use/limits)
+- [x] Close everything (no Wine, no MacX running); delete the auto-resume cron job
+- [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 
 ## Rules
 - Close apps/games after testing (`python3 app/macxctl.py box stop "<box>"`, quit MacX) — the Mac heats up.

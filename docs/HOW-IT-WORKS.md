@@ -83,27 +83,78 @@ than a runtime memory patch.
 
 ## 7. Boxes: one folder, one Windows PC
 
-A box is `~/MacX Boxes/<Name>/` with the Wine prefix hidden in `.macx/prefix`, so the folder owns everything:
+A box is `~/MacX Boxes/<Name>/` with the Wine prefix hidden in `.macx/prefix`, so the folder owns everything
+(code: `app/macxbox.py`).
 
 - **Template + clone.** `box-template` is a prefix built once with `wineboot` and given the D3DMetal bridge
-  files (`ntdlx`, `nvapi64`, `nvngx`, `d3dmt`, DXVK). New boxes are `cp -c` APFS clones: instant, and they
+  files (`ntdlx`, `nvapi64`, `nvngx`, `d3dmt`) and DXVK. New boxes are `cp -c` APFS clones: instant, and they
   share disk blocks until written. Each clone gets a fresh `MachineGuid`. The template is rebuilt when the
-  engines change (a stamp of `ntdll.so` and `ntdlx.dll` hashes).
-- **Containment.** `dosdevices` keeps only `c:` and `w:` (the box folder); `z:` is removed. The user shell
-  folders (`Desktop`, `Documents`, ...) that Wine links to the Mac's own folders become real folders inside
-  the box. Re-checked on every launch.
+  engines change or `TEMPLATE_VERSION` is bumped.
+- **Containment.** `dosdevices` keeps only `c:`, `w:` (the box folder) and inserted discs; `z:` is removed.
+  The user shell folders (`Desktop`, `Documents`, ...) that Wine links to the Mac's own folders become real
+  folders inside the box. Re-checked on every launch.
 - **Sandbox.** Programs start under `sandbox-exec` with a generated profile: deny writes and file-data reads
   under the home folder, then allow the box folder and the MacX engines. One catch: the allows must name the
   same operations as the deny (`file-read-data`, not `file-read*`). A wildcard allow does not override a
   specific deny, and Wine's `bin/../lib/...` loader paths then fail with *sandbox blocked open()*.
 - **One Wine server per box.** Wine keys its server on the prefix folder's device and inode
   (`/tmp/.wine-UID/server-<dev>-<ino>`), so separate prefixes never share a server and one box can't kill
-  another's processes. Processes are attributed to a box with `lsof` (open files under its prefix).
-- **Deleted in Finder.** The app watches `~/MacX Boxes` with FSEvents. On every list, Wine processes whose
-  prefix is no longer a live box are killed, and stale server dirs are removed. A server dir is mapped back
-  to its prefix through `/.vol/<dev>/<ino>` + `F_GETPATH`, which still resolves for a folder in the Trash.
-- **Migration.** `box migrate` renames the old shared prefix and Desktop folder into `Main` (same disk, so no
-  copy) and leaves symlinks at the old paths for the Steam code.
+  another's processes. Processes are attributed to a box with one `lsof` call over all Wine pids.
+- **Deleted in Finder.** The app watches `~/MacX Boxes` with FSEvents (ignoring the box's own `.macx`
+  bookkeeping). On every list, Wine processes whose prefix is no longer a live box are killed, stale server
+  dirs are removed (a server dir is mapped back to its prefix through `/.vol/<dev>/<ino>` + `F_GETPATH`, which
+  still resolves for a folder in the Trash) and disc images inserted from a deleted box are ejected.
+
+### Loading anything
+
+Files in the box folder (drive W:) are classified: game folder / program (has a playable `.exe`; uninstallers,
+crash reporters, redistributables are skipped when picking "the" exe), installer (`setup*.exe`, `install*`,
+`.msi`, or a folder whose only programs are setups, which covers *setup.exe + data-N.bin* repacks), archive,
+split archive (`.7z.001`, `.zip.001`; the later parts are hidden), disc image, shortcut, script.
+
+**Set Up** starts a detached worker (`macxctl.py box _work`) that takes the pending items one at a time and
+records each result in `.macx/state.json` (kept apart from `box.json`, which the app rewrites):
+archives are unpacked with macOS's own `bsdtar` (zip, 7z, rar, tar; split parts are joined first) into a
+folder named after the archive, and anything new that comes out is queued too; discs are attached with
+`hdiutil` (read-only), linked as the next free drive letter, and their `autorun.inf` / `setup.exe` is run;
+installers run on the Wine engine, sandboxed, and the worker waits for them to finish (exit code 0 =
+installed). The app shows the worker's `task.json` as a progress bar.
+
+**Finding what got installed.** Start Menu and Desktop `.lnk` shortcuts (parsed directly: the Shell Link
+format's LinkInfo gives the target path), `.url` shortcuts to `steam://rungameid/`, the
+`...\CurrentVersion\Uninstall` keys in `system.reg` (both the 64-bit and the `Wow6432Node` half, where 32-bit
+installers write), and Steam's `appmanifest_*.acf` files. Each target's PE header gives 32/64-bit, and its
+import strings give the DirectX version.
+
+### Which way to Metal
+
+| Game | Route | How MacX sets it up |
+| --- | --- | --- |
+| 64-bit DirectX 10/11/12 | D3DMetal | the `d3dmetal` engine; its builtin d3d11/d3d12/dxgi are D3DMetal |
+| DirectX 10/11 (32- or 64-bit) | DXMT | DXMT's `d3d11`/`dxgi`/`d3d10core` (builtin marker stripped) copied next to the exe, plus `WINEDLLOVERRIDES=...=n,b` |
+| DirectX 9 and older, OpenGL, Vulkan | Wine | wined3d over OpenGL (Metal-backed on Apple silicon), winevulkan over MoltenVK |
+
+Findings that shaped this:
+
+- **DLLs next to the exe win.** Wine loads a DLL from the program's own folder before its builtin, whatever
+  the engine: with DXMT files beside it, a game set to D3DMetal still got DXMT. So MacX removes its DXMT
+  copies again (only files identical to its own) whenever a game runs another way.
+- **DLLs in system32 don't.** For the Windows folders Wine prefers its builtins unless an override says
+  "native". The shared setup relies on that: DXVK sits in `system32` and only the programs the registry sets
+  to native (the Steam and Rockstar launchers' Chromium windows) use it. Boxes keep exactly that layout;
+  replacing it with DXMT made the Rockstar launcher crash (DXMT doesn't implement
+  `SwapDeviceContextState`, which Chromium's ANGLE calls).
+- **DXVK for macOS is too old for 32-bit and DirectX 9 now.** DXVK-macOS 1.10.3 (2023) against the MoltenVK
+  1.4 that ships with Wine 11: 32-bit DirectX 11 fails in `vkCreateBuffer` (external memory handle type) and
+  DirectX 9 in `vkCreateDevice` (geometry shader feature). DXMT's 32-bit build and wined3d cover those games.
+
+**Copy of the shared setup.** `box clone-main` is `cp -cR` of the shared prefix into a new box (1.7 s for a
+100 GB Steam + GTA V install, no extra disk), keeping its MachineGuid (it is the same PC) and then applying
+the containment above. GTA V Enhanced was started from Steam inside such a box, under the sandbox: Steam →
+PlayGTAV → Rockstar launcher → `GTA5_Enhanced.exe`, title active in the Rockstar launcher.
+
+**Migration.** `box migrate` renames the old shared prefix and Desktop folder into `Main` (same disk, so no
+copy) and leaves symlinks at the old paths for the Steam code.
 
 ## Debugging toolkit
 

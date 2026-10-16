@@ -526,7 +526,7 @@ enum NavSection: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
-    @State private var section: NavSection? = .folder
+    @State private var section: NavSection? = .boxes
 
     var body: some View {
         if let st = model.status, !st.setupOK {
