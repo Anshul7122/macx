@@ -1,0 +1,14 @@
+LIBRARY d3d12.dll
+EXPORTS
+    GetBehaviorValue = d3dmt.GetBehaviorValue
+    D3D12CreateDevice
+    D3D12GetDebugInterface = d3dmt.D3D12GetDebugInterface
+    D3D12CoreCreateLayeredDevice = d3dmt.D3D12CoreCreateLayeredDevice
+    D3D12CoreGetLayeredDeviceSize = d3dmt.D3D12CoreGetLayeredDeviceSize
+    D3D12CoreRegisterLayers = d3dmt.D3D12CoreRegisterLayers
+    D3D12CreateRootSignatureDeserializer = d3dmt.D3D12CreateRootSignatureDeserializer
+    D3D12CreateVersionedRootSignatureDeserializer = d3dmt.D3D12CreateVersionedRootSignatureDeserializer
+    D3D12EnableExperimentalFeatures = d3dmt.D3D12EnableExperimentalFeatures
+    D3D12SerializeRootSignature = d3dmt.D3D12SerializeRootSignature
+    D3D12SerializeVersionedRootSignature = d3dmt.D3D12SerializeVersionedRootSignature
+    D3D12GetInterface

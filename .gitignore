@@ -1,0 +1,14 @@
+# build output
+/build/
+/dist/
+*.o
+*.dll
+*.exe
+*.so
+*.dylib
+*.icns
+*.iconset/
+# never commit third-party binaries, game files, logs
+/vendor/
+*.log
+.DS_Store

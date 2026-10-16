@@ -1,0 +1,118 @@
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -2214,4 +2214,88 @@
+     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+     pthread_mutex_init(&win_data_mutex, &attr);
+     pthread_mutexattr_destroy(&attr);
++}
++
++/***********************************************************************
++ *              DXMT + D3DMetal compatibility (GTAV-Mac project)
++ *
++ * DXMT (github.com/3Shain/dxmt) and Apple's D3DMetal look up an exported
++ * "macdrv_functions" table, as provided by CrossOver-derived Wine. Upstream
++ * Wine hides these functions and its macdrv_win_data layout differs, so
++ * expose an adapter returning the CrossOver (Wine 7.x) layout they expect.
++ */
++extern WineContentView *macdrv_dxmt_window_content_view(WineWindow *window);
++extern void OnMainThread(dispatch_block_t block);
++
++struct cx_compat_win_data
++{
++    HWND             hwnd;
++    WineWindow      *cocoa_window;
++    WineContentView *cocoa_view;
++    WineContentView *client_cocoa_view;
++    RECT             window_rect;
++    RECT             whole_rect;
++    RECT             client_rect;
++    int              pixel_format;
++    void            *gl_view;
++    RECT             gl_rect;
++    void            *surface;
++    void            *unminimized_surface;
++    int              swap_interval;
++    unsigned int     flags;
++    char             reserved[64];         /* slack in case a reader expects later CrossOver fields */
++};
++
++static struct cx_compat_win_data *cx_get_win_data(HWND hwnd)
++{
++    struct macdrv_win_data *data;
++    struct cx_compat_win_data *compat;
++    WineWindow *window;
++    WineContentView *client;
++
++    if (!(compat = calloc(1, sizeof(*compat)))) return NULL;
++    if (!(data = get_win_data(hwnd))) { free(compat); return NULL; }
++    window = data->cocoa_window;
++    client = data->client_view;
++    compat->window_rect = data->rects.window;
++    compat->whole_rect = data->rects.visible;
++    compat->client_rect = data->rects.client;
++    compat->pixel_format = data->pixel_format;
++    compat->flags = data->on_screen | (data->minimized << 5) | (data->fullscreen << 6);
++    release_win_data(data);   /* don't hold the lock across main-thread calls */
++
++    compat->hwnd = hwnd;
++    compat->cocoa_window = window;
++    compat->cocoa_view = macdrv_dxmt_window_content_view(window);
++    compat->client_cocoa_view = compat->cocoa_view;
++    TRACE("hwnd %p cocoa_window %p view %p client %p\n", hwnd, window, compat->cocoa_view, client);
++    return compat;
+ }
++
++static void cx_release_win_data(struct cx_compat_win_data *compat)
++{
++    free(compat);
++}
++
++static void cx_init_display_devices(BOOL force)
++{
++    TRACE("force %d (display devices are managed by win32u)\n", force);
++}
++
++/* Slot order matches CrossOver's / DXMT's struct macdrv_functions_t. */
++__attribute__((visibility("default"))) const struct
++{
++    void *funcs[10];
++} macdrv_functions =
++{{
++    (void *)cx_init_display_devices,
++    (void *)cx_get_win_data,
++    (void *)cx_release_win_data,
++    (void *)macdrv_get_cocoa_window,
++    (void *)macdrv_create_metal_device,
++    (void *)macdrv_release_metal_device,
++    (void *)macdrv_view_create_metal_view,
++    (void *)macdrv_view_get_metal_layer,
++    (void *)macdrv_view_release_metal_view,
++    (void *)OnMainThread,
++}};
+--- a/dlls/winemac.drv/cocoa_window.m
++++ b/dlls/winemac.drv/cocoa_window.m
+@@ -3988,3 +3988,24 @@
+             [[window contentView] clearMarkedText];
+     });
+ }
++
++/***********************************************************************
++ *              macdrv_dxmt_window_content_view
++ *
++ * GTAV-Mac project: DXMT compatibility. Returns the WineContentView that
++ * fills a Wine window, so DXMT can attach its Metal view to it.
++ */
++WineContentView *macdrv_dxmt_window_content_view(WineWindow *window)
++{
++    __block WineContentView *view = nil;
++
++    if (!window) return nil;
++
++    OnMainThread(^{
++        NSView *content = [window contentView];
++        if ([content isKindOfClass:[WineContentView class]])
++            view = (WineContentView*)content;
++    });
++
++    return view;
++}
