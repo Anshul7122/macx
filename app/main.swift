@@ -99,24 +99,51 @@ struct StorageItem: Codable, Identifiable, Hashable {
     let note: String
 }
 
-struct BoxItem: Codable, Identifiable, Hashable {
+/// Something in a box: a file on its W: drive, or a game/program installed inside it.
+struct BoxEntry: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let kind: String
     let path: String
-    let mainExe: String?
-    let api: String?
-    let engine: String?
-    let effectiveEngine: String?
+    let winPath: String?
+    let api: String
+    let bits: Int?
+    let choice: String
+    let auto: String
+    let effective: String
+    let running: Bool
+    let status: String?
+    let pending: Bool?
+    let playable: Bool?
+    let source: String?
+    let log: String
+}
+struct TaskResult: Codable, Hashable { let id: String; let state: String; let message: String }
+struct BoxTask: Codable, Hashable {
+    let label: String
+    let done: Int
+    let total: Int
+    let finished: Bool
+    let results: [TaskResult]?
 }
 struct WinBox: Codable, Identifiable, Hashable {
     var id: String { name }
     let name: String
     let path: String
     let running: Bool
-    let items: [BoxItem]
+    let files: [BoxEntry]
+    let apps: [BoxEntry]
+    let task: BoxTask?
+    let pending: Int
+    var busy: Bool { task.map { !$0.finished } ?? false }
+    /// Everything that can be played: installed games first, then games sitting on W:.
+    var games: [BoxEntry] { apps + files.filter { $0.playable == true } }
+    var setupFiles: [BoxEntry] { files.filter { ["installer", "archive", "disk"].contains($0.kind) } }
+    var otherFiles: [BoxEntry] { files.filter { $0.playable != true && !["installer", "archive", "disk"].contains($0.kind) } }
 }
-struct BoxesResp: Codable { let ok: Bool; let error: String?; let boxes: [WinBox]?; let root: String?; let canMigrate: Bool? }
+struct BoxesResp: Codable {
+    let ok: Bool; let error: String?; let boxes: [WinBox]?; let root: String?; let canMigrate: Bool?; let canClone: Bool?
+}
 
 struct Check: Codable, Hashable { let name: String; let status: String }
 struct PathItem: Codable, Hashable { let name: String; let path: String }
@@ -207,14 +234,22 @@ func gfxName(_ m: String) -> String {
 final class FolderWatcher {
     private var stream: FSEventStreamRef?
     private let onChange: () -> Void
+    fileprivate let ignore: (String) -> Bool
 
-    init(path: String, onChange: @escaping () -> Void) {
+    /// ignore: paths whose changes don't matter (e.g. a box's own bookkeeping in .macx).
+    init(path: String, ignore: @escaping (String) -> Bool = { _ in false }, onChange: @escaping () -> Void) {
         self.onChange = onChange
+        self.ignore = ignore
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
                                        retain: nil, release: nil, copyDescription: nil)
-        let cb: FSEventStreamCallback = { _, info, _, _, _, _ in
+        let cb: FSEventStreamCallback = { _, info, count, paths, _, _ in
             guard let info else { return }
-            Unmanaged<FolderWatcher>.fromOpaque(info).takeUnretainedValue().onChange()
+            let w = Unmanaged<FolderWatcher>.fromOpaque(info).takeUnretainedValue()
+            let list = paths.assumingMemoryBound(to: UnsafePointer<CChar>.self)
+            for i in 0..<count where !w.ignore(String(cString: list[i])) {
+                w.onChange()
+                return
+            }
         }
         guard let s = FSEventStreamCreate(nil, cb, &ctx, [path] as CFArray,
                                           FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0,
@@ -248,6 +283,7 @@ final class AppModel: ObservableObject {
     @Published var banner: (text: String, isError: Bool)?
     @Published var boxes: [WinBox] = []
     @Published var canMigrate = false
+    @Published var canClone = false
     private var timer: Timer?
     private var watcher: FolderWatcher?
     private var boxWatcher: FolderWatcher?
@@ -257,7 +293,11 @@ final class AppModel: ObservableObject {
     init() {
         Task { await start() }
         timer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.refreshStatus() }
+            Task { @MainActor in
+                await self?.refreshStatus()
+                // keep boxes live while something runs or is being set up in one
+                if self?.boxes.contains(where: { $0.running || $0.busy }) == true { await self?.refreshBoxes() }
+            }
         }
     }
 
@@ -269,7 +309,7 @@ final class AppModel: ObservableObject {
         }
         try? FileManager.default.createDirectory(atPath: boxesPath, withIntermediateDirectories: true)
         // Boxes added, changed or moved to the Trash in Finder show up here without pressing anything.
-        boxWatcher = FolderWatcher(path: boxesPath) { [weak self] in
+        boxWatcher = FolderWatcher(path: boxesPath, ignore: { $0.contains("/.macx/") || $0.hasSuffix("/.macx") }) { [weak self] in
             Task { @MainActor in self?.scheduleBoxesRefresh() }
         }
         await refreshAll()
@@ -318,7 +358,15 @@ final class AppModel: ObservableObject {
         if let r = await Backend.call(BoxesResp.self, ["box", "list"]), let list = r.boxes {
             boxes = list
             canMigrate = r.canMigrate ?? false
+            canClone = r.canClone ?? false
         }
+    }
+
+    /// Adds any number of files/folders to a box (copied in; instant on the same disk) and sets them up.
+    func addToBox(_ box: String, _ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        await boxAct(urls.count == 1 ? "Adding \(urls[0].lastPathComponent)…" : "Adding \(urls.count) items…",
+                     ["add", box, "--setup"] + urls.map(\.path))
     }
 
     func boxAct(_ label: String, _ args: [String]) async {
@@ -452,7 +500,7 @@ struct MacXApp: App {
     @StateObject private var model = AppModel.shared
     var body: some Scene {
         WindowGroup("MacX") {
-            ContentView().environmentObject(model).frame(minWidth: 980, minHeight: 640)
+            ContentView().environmentObject(model).frame(minWidth: 1220, minHeight: 680)
         }
         .windowResizability(.contentMinSize)
     }
@@ -688,6 +736,8 @@ struct BoxesView: View {
     @State private var selected: String?
     @State private var confirmDelete: WinBox?
     @State private var confirmMigrate = false
+    @State private var confirmClone = false
+    @State private var dropTarget: String?
 
     var body: some View {
         HSplitView {
@@ -702,17 +752,31 @@ struct BoxesView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(b.name).font(.headline).lineLimit(1)
                             HStack(spacing: 6) {
-                                Text(programCount(b))
-                                if b.running { Text("Running").foregroundStyle(.green) }
+                                Text(b.games.count == 1 ? "1 game" : "\(b.games.count) games")
+                                if b.busy { Text("Setting up…").foregroundStyle(.orange) }
+                                else if b.running { Text("Running").foregroundStyle(.green) }
+                                else if b.pending > 0 { Text("\(b.pending) to set up").foregroundStyle(.orange) }
                             }.font(.caption).foregroundStyle(.secondary)
                         }
-                    }.padding(.vertical, 3).tag(b.name)
+                    }
+                    .padding(.vertical, 3).tag(b.name)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.accentColor, lineWidth: dropTarget == b.name ? 2 : 0))
+                    .onDrop(of: [.fileURL], isTargeted: Binding(get: { dropTarget == b.name },
+                                                                set: { dropTarget = $0 ? b.name : nil })) { providers in
+                        loadURLs(providers) { urls in Task { await model.addToBox(b.name, urls) } }
+                        return true
+                    }
                 }
                 .overlay {
                     if model.boxes.isEmpty {
-                        Text("No boxes yet. A box is a folder that acts as a separate Windows PC: what runs in it can't see the rest of your Mac.")
+                        Text("No boxes yet. A box is a folder that acts as a separate Windows PC: drop games, installers, archives or disc images into it, and what runs in it can't see the rest of your Mac.")
                             .multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 20)
                     }
+                }
+                if model.canClone {
+                    Button { confirmClone = true } label: {
+                        Label("Copy my Steam setup into a box", systemImage: "plus.square.on.square")
+                    }.buttonStyle(.link).padding(.horizontal, 14).padding(.top, 6)
                 }
                 if model.canMigrate {
                     Button { confirmMigrate = true } label: {
@@ -728,7 +792,7 @@ struct BoxesView: View {
                     Spacer()
                 }.padding(10)
             }
-            .frame(minWidth: 260, idealWidth: 300, maxWidth: 380)
+            .frame(minWidth: 230, idealWidth: 260, maxWidth: 340)
 
             Group {
                 if let b = model.boxes.first(where: { $0.name == selected }) {
@@ -740,7 +804,7 @@ struct BoxesView: View {
                     }.frame(maxWidth: .infinity, maxHeight: .infinity).padding()
                 }
             }
-            .frame(minWidth: 500, maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
             Task { await model.refreshBoxes() }
@@ -755,7 +819,12 @@ struct BoxesView: View {
                 if let b = confirmDelete { Task { await model.boxAct("Deleting \(b.name)…", ["delete", b.name]) } }
             }
         } message: {
-            Text("Everything in it — programs, saves and its Windows settings — goes to the Trash. Programs running in it are stopped.")
+            Text("Everything in it — games, saves and its Windows settings — goes to the Trash. Programs running in it are stopped.")
+        }
+        .confirmationDialog("Copy your Steam setup into a new box?", isPresented: $confirmClone) {
+            Button("Copy into a box") { Task { await model.boxAct("Copying your setup…", ["clone-main"]) } }
+        } message: {
+            Text("Makes a box that starts with your current C: drive — Steam, installed games, saves. It's a copy-on-write clone: instant, and it takes no extra disk space until something changes. Your existing setup is not touched. Quit Steam first.")
         }
         .confirmationDialog("Move your existing setup into a box called “Main”?", isPresented: $confirmMigrate) {
             Button("Move into “Main”") { Task { await model.boxAct("Moving your setup…", ["migrate"]) } }
@@ -763,10 +832,14 @@ struct BoxesView: View {
             Text("Your Windows drive C: (including Steam and installed games) and the MacX folder are moved — not copied — into MacX Boxes/Main. The Steam page keeps working. The box no longer has a Z: drive, so Windows programs in it can't see the rest of your Mac. Quit Steam first.")
         }
     }
+}
 
-    func programCount(_ b: WinBox) -> String {
-        let n = b.items.filter { $0.mainExe != nil }.count
-        return n == 1 ? "1 program" : "\(n) programs"
+func choiceName(_ c: String) -> String {
+    switch c {
+    case "d3dmetal": return "D3DMetal"
+    case "dxmt": return "DXMT"
+    case "wine": return "Wine"
+    default: return "Auto"
     }
 }
 
@@ -774,56 +847,195 @@ struct BoxDetail: View {
     @EnvironmentObject var model: AppModel
     let box: WinBox
     let onDelete: () -> Void
+    @State private var dropTargeted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(box.name).font(.title2.weight(.semibold))
-                    Text(box.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                }
-                Spacer()
-                if box.running {
-                    Button { Task { await model.boxAct("Stopping…", ["stop", box.name]) } } label: {
-                        Label("Stop All", systemImage: "stop.fill")
+            header
+            if let t = box.task, !t.finished {
+                HStack(spacing: 10) {
+                    ProgressView(value: Double(t.done), total: Double(max(t.total, 1))).frame(width: 140)
+                    Text("\(t.label)  (\(min(t.done + 1, t.total)) of \(t.total))").font(.callout)
+                    Spacer()
+                }.padding(.horizontal, 16).padding(.vertical, 8).background(Color.orange.opacity(0.12))
+            }
+            Divider()
+            if box.files.isEmpty && box.apps.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "tray.and.arrow.down").font(.system(size: 40)).foregroundStyle(.secondary)
+                    Text("Drop anything Windows here — as many as you like").font(.title3)
+                    Text("Game folders, single .exe programs, installers (setup.exe, also with data-1.bin, data-2.bin… beside it), .msi, .zip / .7z / .rar archives and .iso disc images. MacX unpacks, inserts and installs them one after another, then lists the games ready to play on Metal.")
+                        .multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: 460)
+                    Button { pickFiles() } label: { Label("Add Files…", systemImage: "plus") }.controlSize(.large)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+            } else {
+                List {
+                    if !box.games.isEmpty {
+                        Section("Games & programs") {
+                            ForEach(box.games) { it in GameRow(box: box.name, item: it) }
+                        }
+                    }
+                    if !box.setupFiles.isEmpty {
+                        Section("Installers, archives & discs") {
+                            ForEach(box.setupFiles) { it in SetupRow(box: box.name, item: it, busy: box.busy) }
+                        }
+                    }
+                    if !box.otherFiles.isEmpty {
+                        Section("Other files on W:") {
+                            ForEach(box.otherFiles) { it in
+                                HStack {
+                                    Image(systemName: "doc").frame(width: 22).foregroundStyle(.secondary)
+                                    Text(it.name)
+                                    Spacer()
+                                    if ["shortcut", "script", "file"].contains(it.kind) {
+                                        Button("Open") { Task { await model.boxAct("Opening \(it.name)…", ["play", box.name, it.id]) } }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                Button { reveal(box.path) } label: { Label("Show in Finder", systemImage: "folder") }
-                Button(role: .destructive, action: onDelete) { Label("Delete Box", systemImage: "trash") }
-            }.padding(16)
-            Divider()
-            let progs = box.items.filter { $0.mainExe != nil }
-            if progs.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "tray.and.arrow.down").font(.system(size: 36)).foregroundStyle(.secondary)
-                    Text("Drop Windows programs or game folders into this box's folder in Finder. They appear here and run as drive W:.")
-                        .multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 30)
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(progs) { it in
-                    HStack(spacing: 10) {
-                        Image(systemName: "app.dashed").frame(width: 22).foregroundStyle(Color.accentColor)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(it.name).font(.headline).lineLimit(1)
-                            HStack(spacing: 6) {
-                                Text(it.mainExe ?? "")
-                                if let api = it.api, api != "Unknown" { Text(api) }
-                            }.font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker("", selection: Binding(
-                            get: { it.engine ?? "auto" },
-                            set: { v in Task { await model.boxAct("Saving…", ["set-engine", box.name, it.id, v]) } })) {
-                            Text("Auto (\(engineShort(it.effectiveEngine ?? "")))").tag("auto")
-                            Text("D3DMetal").tag("d3dmetal")
-                            Text("Wine 11").tag("wine11")
-                        }.frame(width: 170).labelsHidden()
-                        Button { Task { await model.boxAct("Starting \(it.name)…", ["launch", box.name, it.id]) } } label: {
-                            Label("Run", systemImage: "play.fill")
-                        }
-                    }.padding(.vertical, 4)
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: dropTargeted ? 3 : 0).padding(4))
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
+            loadURLs(providers) { urls in Task { await model.addToBox(box.name, urls) } }
+            return true
+        }
+    }
+
+    var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(box.name).font(.title2.weight(.semibold))
+                Text(box.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(1)
+            }
+            Spacer()
+            Button { pickFiles() } label: { Label("Add Files…", systemImage: "plus") }
+            if box.pending > 0 && !box.busy {
+                Button { Task { await model.boxAct("Setting up…", ["setup", box.name]) } } label: {
+                    Label("Set Up All (\(box.pending))", systemImage: "wand.and.stars")
+                }.buttonStyle(.borderedProminent)
+            }
+            if box.running || box.busy {
+                Button { Task { await model.boxAct("Stopping…", ["stop", box.name]) } } label: {
+                    Label("Stop All", systemImage: "stop.fill")
                 }
             }
+            Menu {
+                Button("Show in Finder") { reveal(box.path) }
+                Button("Show Logs") { NSWorkspace.shared.open(URL(fileURLWithPath: box.path + "/.macx/logs")) }
+                Divider()
+                Button("Delete Box…", role: .destructive, action: onDelete)
+            } label: { Image(systemName: "ellipsis.circle") }.menuStyle(.borderlessButton).frame(width: 34)
+        }.padding(16)
+    }
+
+    func pickFiles() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Add to \(box.name)"
+        panel.message = "Choose any number of Windows games, programs, installers (or installer folders), archives or disc images."
+        if panel.runModal() == .OK { Task { await model.addToBox(box.name, panel.urls) } }
+    }
+}
+
+struct GameRow: View {
+    @EnvironmentObject var model: AppModel
+    let box: String
+    let item: BoxEntry
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: item.kind == "steam" || item.kind == "steamgame" ? "gamecontroller.fill" : "app.dashed")
+                .frame(width: 22).foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(item.name).font(.headline).lineLimit(1)
+                    if item.running { Text("Running").font(.caption).foregroundStyle(.green) }
+                }
+                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            if item.kind != "steam" && item.kind != "steamgame" {
+                Picker("", selection: Binding(
+                    get: { item.choice },
+                    set: { v in Task { await model.boxAct("Saving…", ["set", box, item.id, "engine", v]) } })) {
+                    Text("Auto (\(choiceName(item.auto)))").tag("auto")
+                    Text("D3DMetal").tag("d3dmetal")
+                    Text("DXMT").tag("dxmt")
+                    Text("Wine").tag("wine")
+                }.frame(width: 150).labelsHidden()
+                    .help("How the graphics reach Metal. D3DMetal: Apple's, for 64-bit DirectX 10–12. DXMT: DirectX 10/11, also 32-bit. Wine: DirectX 9 and older (OpenGL), Vulkan.")
+            }
+            if item.running {
+                Button { Task { await model.boxAct("Closing \(item.name)…", ["stop", box, item.id]) } } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+            } else {
+                Button { Task { await model.boxAct("Starting \(item.name)…", ["play", box, item.id]) } } label: {
+                    Label("Play", systemImage: "play.fill")
+                }.buttonStyle(.borderedProminent)
+            }
+        }.padding(.vertical, 4)
+    }
+
+    var subtitle: String {
+        var parts: [String] = []
+        if item.kind == "steamgame" { parts.append("Steam game") }
+        else if item.kind == "steam" { parts.append("Steam") }
+        else {
+            if item.api != "Unknown" { parts.append(item.api) }
+            if let b = item.bits { parts.append("\(b)-bit") }
+            parts.append("→ " + choiceName(item.effective))
+        }
+        if let w = item.winPath { parts.append(w) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+struct SetupRow: View {
+    @EnvironmentObject var model: AppModel
+    let box: String
+    let item: BoxEntry
+    let busy: Bool
+
+    var icon: String {
+        switch item.kind {
+        case "archive": return "doc.zipper"
+        case "disk": return "opticaldisc"
+        default: return "shippingbox.and.arrow.backward"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).frame(width: 22).foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name).font(.headline).lineLimit(1)
+                Text(item.status ?? "").font(.caption)
+                    .foregroundStyle(item.pending == true ? Color.orange : (item.status ?? "").contains("error") ? Color.red : Color.secondary)
+            }
+            Spacer()
+            if item.kind == "disk", (item.status ?? "").contains("in drive") {
+                Button("Eject") { Task { await model.boxAct("Ejecting…", ["eject", box, item.id]) } }
+            }
+            Button("Log") { NSWorkspace.shared.open(URL(fileURLWithPath: item.log)) }
+                .disabled(!FileManager.default.fileExists(atPath: item.log))
+            Button(action: { Task { await model.boxAct("Setting up \(item.name)…", ["setup", box, item.id]) } }) {
+                Text(actionLabel)
+            }.disabled(busy)
+        }.padding(.vertical, 4)
+    }
+
+    var actionLabel: String {
+        let again = item.pending != true
+        switch item.kind {
+        case "archive": return again ? "Unpack Again" : "Unpack"
+        case "disk": return again ? "Run Setup Again" : "Insert & Install"
+        default: return again ? "Install Again" : "Install"
         }
     }
 }

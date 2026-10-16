@@ -312,8 +312,31 @@ def wine_processes():
     return procs
 
 
+def box_pids(procs):
+    """pids (of these Wine processes) that run inside a MacX box rather than the shared setup: one lsof call."""
+    pids = [p["pid"] for p in procs]
+    if not pids:
+        return set()
+    r = subprocess.run(["lsof", "-Fpn", "-p", ",".join(map(str, pids))], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True, errors="replace")
+    res, cur = set(), None
+    for line in r.stdout.splitlines():
+        if line.startswith("p"):
+            cur = int(line[1:])
+        elif line.startswith("n") and "/.macx/prefix/" in line and not os.path.realpath(PREFIX).endswith("/.macx/prefix"):
+            res.add(cur)
+    return res
+
+
+def shared_processes():
+    """Wine processes of the shared setup only (boxes are listed on their own page)."""
+    procs = wine_processes()
+    boxed = box_pids(procs)
+    return [p for p in procs if p["pid"] not in boxed]
+
+
 def steam_running(procs=None):
-    procs = procs if procs is not None else wine_processes()
+    procs = procs if procs is not None else shared_processes()
     return any(p["exe"].lower() == "steam.exe" for p in procs)
 
 
@@ -460,7 +483,7 @@ def running_drop_items(procs):
         if p["exe"] == "wineserver":
             continue
         up = win_to_unix(p["path"], p["engine"]) or ""
-        if up.startswith(drop + os.sep):
+        if up.startswith(drop + os.sep) and os.path.exists(up):
             res.setdefault(os.path.relpath(up, drop).split(os.sep)[0], []).append(p)
     return res
 
@@ -473,7 +496,7 @@ def engines_data():
 
 
 def status_data():
-    procs = wine_processes()
+    procs = shared_processes()
     st = os.statvfs(HOME)
     cfg = load_config()
     running_games = []
@@ -524,12 +547,15 @@ def is_cef_wrapper(path):
         return False
 
 
-def apply_cef_wrappers():
+def apply_cef_wrappers(drive_c=None):
     """Steam's and the Rockstar launcher's Chromium helpers need --in-process-gpu to draw under Wine. Wrap the helper
-    exe (helper.exe -> helper_real.exe + our wrapper); re-applied after every update that replaces it."""
+    exe (helper.exe -> helper_real.exe + our wrapper); re-applied after every update that replaces it. drive_c picks
+    another C: drive (a box's); the default is the shared one."""
+    steam_dir = os.path.join(drive_c, "Program Files (x86)", "Steam") if drive_c else STEAM_DIR
+    sc_dir = os.path.join(drive_c, "Program Files", "Rockstar Games", "Social Club") if drive_c else SC_DIR
     for folder, helper, flags in (
-            (os.path.join(STEAM_DIR, "bin", "cef", "cef.win64"), "steamwebhelper", "--in-process-gpu"),
-            (SC_DIR, "SocialClubHelper", "--in-process-gpu --disable-gpu --disable-gpu-compositing")):
+            (os.path.join(steam_dir, "bin", "cef", "cef.win64"), "steamwebhelper", "--in-process-gpu"),
+            (sc_dir, "SocialClubHelper", "--in-process-gpu --disable-gpu --disable-gpu-compositing")):
         exe = os.path.join(folder, helper + ".exe")
         wrap = STEAM_WRAP if helper == "steamwebhelper" else CEF_WRAP
         if not os.path.exists(exe) or not os.path.exists(wrap) or sha(exe) == sha(wrap):
@@ -597,7 +623,7 @@ def kill_all():
             subprocess.run([e["server"], "-k"], env=wine_env(engine=eid), stderr=subprocess.DEVNULL,
                            stdout=subprocess.DEVNULL, timeout=30)
     time.sleep(1)
-    for pid in own_engine_pids([p["pid"] for p in wine_processes()]):
+    for pid in own_engine_pids([p["pid"] for p in shared_processes()]):   # boxes are stopped from their own page
         try:
             os.kill(pid, signal.SIGKILL)
         except OSError:
