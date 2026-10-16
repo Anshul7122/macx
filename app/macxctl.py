@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """MacX backend: the Wine engines, the Windows C: drive and the "MacX" Desktop folder (drive W:).
-Data lives in ~/Library/Application Support/MacX (or ~/GTAV-Mac for the original hand-built setup).
+Data lives in ~/Library/Application Support/MacX (or $MACX_ROOT).
 
 Every command prints one JSON object to stdout:  {"ok": true, ...} or {"ok": false, "error": "..."}
 """
@@ -26,29 +26,15 @@ KIT = os.environ.get("MACX_KIT") or next(
     (p for p in (os.path.join(HERE, "engine-kit"), os.path.join(HERE, "..", "build", "engine-kit")) if os.path.isdir(p)),
     os.path.join(HERE, "engine-kit"))
 SUPPORT = os.path.join(HOME, "Library", "Application Support", "MacX")
-LEGACY = os.path.join(HOME, "GTAV-Mac")   # the original hand-built setup this project grew out of
-LEGACY_LAYOUT = (not os.environ.get("MACX_ROOT") and os.path.isdir(os.path.join(LEGACY, "prefix11"))
-                 and not os.path.isdir(os.path.join(SUPPORT, "prefix")))
-ROOT = os.environ.get("MACX_ROOT") or (LEGACY if LEGACY_LAYOUT else SUPPORT)
-if LEGACY_LAYOUT:
-    PREFIX = os.path.join(ROOT, "prefix11")
-    WINE_APP = os.path.join(ROOT, "wine11", "Wine Devel.app")
-    D3DM_APP = os.path.join(ROOT, "wine11-d3dm", "Wine Devel.app")
-    GPTK_PREFIX = os.path.join(ROOT, "prefix-d3dmetal")
-    DXVK_FULL = os.path.join(ROOT, "gfx", "dxvk-full", "dxvk-macOS-async-v1.10.3-20230507")
-    STEAM_WRAP = os.path.join(ROOT, "wrap", "steamwebhelper.exe")
-    CEF_WRAP = os.path.join(ROOT, "wrap", "cefwrap.exe")
-    NTDLX = os.path.join(ROOT, "d3dm-bridge", "ntdlx.dll")
-    CONFIG = os.path.join(ROOT, "windows-parallel.json")
-else:
-    PREFIX = os.path.join(ROOT, "prefix")
-    WINE_APP = os.path.join(ROOT, "engines", "wine", "Wine Devel.app")
-    D3DM_APP = os.path.join(ROOT, "engines", "wine-d3dmetal", "Wine Devel.app")
-    GPTK_PREFIX = os.path.join(ROOT, "prefix-gptk77")
-    DXVK_FULL = os.path.join(ROOT, "gfx", "dxvk")
-    STEAM_WRAP = CEF_WRAP = os.path.join(KIT, "windows", "cefwrap.exe")
-    NTDLX = os.path.join(KIT, "windows", "ntdlx.dll")
-    CONFIG = os.path.join(ROOT, "config.json")
+ROOT = os.environ.get("MACX_ROOT") or SUPPORT
+PREFIX = os.path.join(ROOT, "prefix")
+WINE_APP = os.path.join(ROOT, "engines", "wine", "Wine Devel.app")
+D3DM_APP = os.path.join(ROOT, "engines", "wine-d3dmetal", "Wine Devel.app")
+GPTK_PREFIX = os.path.join(ROOT, "prefix-gptk77")
+DXVK_FULL = os.path.join(ROOT, "gfx", "dxvk")
+STEAM_WRAP = CEF_WRAP = os.path.join(KIT, "windows", "cefwrap.exe")
+NTDLX = os.path.join(KIT, "windows", "ntdlx.dll")
+CONFIG = os.path.join(ROOT, "config.json")
 DRIVE_C = os.path.join(PREFIX, "drive_c")
 WINE_RES = os.path.join(WINE_APP, "Contents", "Resources", "wine")
 WINEBIN = os.path.join(WINE_RES, "bin")
@@ -62,9 +48,8 @@ STEAM_DIR = os.path.join(DRIVE_C, "Program Files (x86)", "Steam")
 STEAMAPPS = os.path.join(STEAM_DIR, "steamapps")
 SC_DIR = os.path.join(DRIVE_C, "Program Files", "Rockstar Games", "Social Club")
 RGL_DIR = os.path.join(DRIVE_C, "Program Files", "Rockstar Games", "Launcher")
-OLD_CONFIG = os.path.join(ROOT, "winebox.json")
 LOGS = os.path.join(ROOT, "logs")
-DROP_NAME = "Windows Parallel" if LEGACY_LAYOUT else "MacX"   # the original setup keeps its folder name
+DROP_NAME = "MacX"
 DROP = os.path.join(HOME, "Desktop", DROP_NAME)
 DROP_LETTER = "w"
 DROP_LABEL = DROP_NAME
@@ -106,7 +91,7 @@ def fail(msg, **extra):
 
 def load_config():
     cfg = None
-    for path in (CONFIG, OLD_CONFIG):
+    for path in (CONFIG,):
         try:
             with open(path) as f:
                 cfg = json.load(f)
@@ -515,7 +500,6 @@ def status_data():
         "dropExists": os.path.isdir(DROP),
         "engines": engines_data(),
         "setupOK": engine_ok("wine11") and engine_ok("d3dmetal") and os.path.isdir(DRIVE_C),
-        "legacyLayout": LEGACY_LAYOUT,
     }
 
 
@@ -529,6 +513,17 @@ def cmd_games():
     out({"games": [game_info(g, cfg, lo) for g in manifests()]})
 
 
+def is_cef_wrapper(path):
+    """True for any build of our helper wrapper (engine/wrap/wrap.c): small, and it reads wrap_flags.txt."""
+    try:
+        if os.path.getsize(path) > 2_000_000:
+            return False
+        with open(path, "rb") as f:
+            return "wrap_flags.txt".encode("utf-16-le") in f.read()
+    except OSError:
+        return False
+
+
 def apply_cef_wrappers():
     """Steam's and the Rockstar launcher's Chromium helpers need --in-process-gpu to draw under Wine. Wrap the helper
     exe (helper.exe -> helper_real.exe + our wrapper); re-applied after every update that replaces it."""
@@ -539,8 +534,9 @@ def apply_cef_wrappers():
         wrap = STEAM_WRAP if helper == "steamwebhelper" else CEF_WRAP
         if not os.path.exists(exe) or not os.path.exists(wrap) or sha(exe) == sha(wrap):
             continue
-        shutil.move(exe, os.path.join(folder, helper + "_real.exe"))  # a new real helper from an update
-        shutil.copy2(wrap, exe)
+        if not is_cef_wrapper(exe):   # a new real helper from an update: keep it as helper_real.exe
+            shutil.move(exe, os.path.join(folder, helper + "_real.exe"))
+        shutil.copy2(wrap, exe)       # (an older build of our wrapper is simply replaced)
         flags_file = os.path.join(folder, "wrap_flags.txt")
         if not os.path.exists(flags_file):
             with open(flags_file, "w") as f:
@@ -719,7 +715,7 @@ def cmd_launchopts(appid, opts):
     was_running = steam_running()
     if was_running and not stop_steam():
         kill_all()
-    shutil.copy2(f, f + ".winebox-backup")
+    shutil.copy2(f, f + ".macx-backup")
     with open(f, encoding="utf-8", errors="replace") as fh:
         root = vdf_load(fh.read())
     apps = vdf_get(root, "UserLocalConfigStore", "Software", "Valve", "Steam", "apps", create=True)
@@ -783,25 +779,6 @@ def storage_items():
         items.append(dict(id="gptkc", group="Windows side (C: drive)", name="D3DMetal engine's C: drive",
                           path=os.path.join(GPTK_PREFIX, "drive_c"), size=du_bytes(GPTK_PREFIX), removable=False,
                           note="Programs installed with the D3DMetal engine."))
-    leftovers = [
-        ("build", "Wine source & build files", os.path.join(ROOT, "build"),
-         "Only needed to rebuild the Mac driver after a Wine update. Keep the 'patch' folder if you might update Wine."),
-        ("engines", "Unused Sikarugir Wine engine", os.path.join(ROOT, "engines"), "Experiment; not used."),
-        ("oldprefix", "Old Wine 7.7 environment", os.path.join(ROOT, "prefix"), "First attempt; not used."),
-        ("sktest", "Test environment", os.path.join(ROOT, "prefix-sktest"), "Experiment; not used."),
-        ("winetar", "Wine download archive", os.path.join(ROOT, "wine-devel-11.18-osx64.tar.xz"),
-         "Already unpacked into the Wine folder."),
-        ("diag", "Diagnostic captures", os.path.join(ROOT, "diag"),
-         "Screenshots/logs from setup. The app uses a few tools in here; safe to remove later."),
-        ("d3dtest", "DirectX test program", os.path.join(ROOT, "d3dtest"), "Setup test; not needed."),
-        ("steamsetup", "Steam installer", os.path.join(ROOT, "SteamSetup.exe"), "Already installed."),
-        ("crossover", "Old CrossOver bottles", os.path.join(HOME, "Library", "Application Support", "CrossOver"),
-         "From your earlier CrossOver trial. Not used by this setup."),
-    ]
-    for lid, name, path, note in (leftovers if LEGACY_LAYOUT else []):
-        if os.path.exists(path):
-            items.append(dict(id="left:" + lid, group="Leftovers (safe to remove)", name=name, path=path,
-                              size=du_bytes(path), removable=True, note=note))
     return items
 
 

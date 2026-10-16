@@ -114,12 +114,7 @@ struct StorageResp: Codable { let ok: Bool; let error: String?; let items: [Stor
 struct RepairResp: Codable { let ok: Bool; let error: String?; let checks: [Check]? }
 struct PathsResp: Codable { let ok: Bool; let error: String?; let paths: [PathItem]? }
 
-/// The Desktop folder that is drive W:. The original hand-built setup (~/GTAV-Mac) keeps its old folder name.
-let dropPath: String = {
-    let home = NSHomeDirectory(), fm = FileManager.default
-    let legacy = fm.fileExists(atPath: home + "/GTAV-Mac/prefix11") && !fm.fileExists(atPath: home + "/Library/Application Support/MacX/prefix")
-    return home + (legacy && ProcessInfo.processInfo.environment["MACX_ROOT"] == nil ? "/Desktop/MacX" : "/Desktop/MacX")
-}()
+let dropPath = NSHomeDirectory() + "/Desktop/MacX"
 
 // MARK: - Backend bridge
 
