@@ -62,7 +62,7 @@ the Trash to delete it. MacX notices a deleted box and stops anything still runn
    | You add | MacX does |
    | --- | --- |
    | a game folder or a single `.exe` | nothing to set up; it's listed as a game right away |
-   | an installer: `setup.exe`, a folder with `setup.exe` + `data-1.bin`…, or an `.msi` | runs it (you click through its own window as on Windows) |
+   | an installer: `setup.exe`, a folder with `setup.exe` + `data-1.bin`…, or an `.msi` (also recognised by the tool it was made with: Inno Setup, NSIS, InstallShield, WiX, 7-Zip) | runs it (you click through its own window as on Windows, or give it options such as `/VERYSILENT`) |
    | `.zip` `.7z` `.rar` `.tar`, or split `.7z.001` / `.zip.001` parts | unpacks it, then sets up whatever came out (e.g. an installer inside) |
    | `.iso` / `.img` disc image | inserts it as drive D: (E:, …) and runs its setup / autorun |
 

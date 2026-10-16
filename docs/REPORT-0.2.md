@@ -7,7 +7,8 @@
 MacX can now take **any number of Windows files at once**: game folders, single programs, installers
 (including the "setup.exe + data-1.bin, data-2.bin…" kind that repacks use), archives, split archives and disc
 images. It sets them up one after another by itself, finds the games that got installed, and runs each one on
-your Mac's graphics (Metal) the best available way, the same way GTA V Enhanced runs. Everything lives in
+your Mac's graphics (Metal) the best available way, the same way GTA V Enhanced runs. GTA V Enhanced itself now
+also runs from inside a sealed-off box: you played it there in open gameplay at close to 60 fps. Everything lives in
 **boxes**, folders that each act as a separate, sealed-off Windows PC. The new version (0.2.0) is built,
 installed in your Applications folder, and documented. It is saved on the `feature/boxes` branch and **not yet
 published to GitHub**; that waits for your OK.
@@ -20,6 +21,7 @@ Open **MacX** (it now opens on the **Boxes** page). Two boxes are ready:
 | --- | --- | --- |
 | **Test Lab** | six small test "games" I made, in every supported form, already set up | Press **Play** on any of them. Each draws a coloured window for 8 seconds. |
 | **GTA Box** | a copy of your Steam setup with GTA V Enhanced (made instantly, uses no extra disk space) | Press **Play** next to *Grand Theft Auto V Enhanced*. Steam, then the Rockstar launcher, then the game start inside the box. |
+| **Real Installers** | two real installers that came with GTA V (Rockstar's Social Club and Games Launcher) and Microsoft's Visual C++ installer | See "Real installers" below. Social Club is installed; the Rockstar launcher installer waits for your clicks. |
 
 To try your own files: **New Box** → **Add Files…** (pick as many as you like) → MacX sets them up → **Play**.
 The step-by-step guide is in [docs/USER-GUIDE.md](USER-GUIDE.md).
@@ -50,6 +52,12 @@ You can drop many things at once. MacX looks at each one and works out what it i
 **Set Up All** works through everything in the background, one item after another, and shows its progress.
 When you add files through the app it starts by itself. One item failing doesn't stop the others; each one
 shows **Installed**, **Unpacked** or what went wrong, and has a **Log** button.
+
+**Installers with odd names.** Real installers aren't always called "setup". MacX also recognises them by the
+tool they were made with: Inno Setup (what most repacks use), NSIS, InstallShield, Microsoft's WiX, 7-Zip. When
+it still guesses wrong, the **⋯** menu next to the item says **Treat as an Installer** (or **Treat as a
+Program**). **Install Options…** passes options to the installer, for example `/VERYSILENT` to install an Inno
+Setup repack without clicking.
 
 ### 4. Finding what got installed
 After installing, MacX looks where Windows itself would to find the games:
@@ -103,10 +111,18 @@ file. I packed them in every form MacX should accept:
 - **All five added in one go** were set up in about **6 seconds**, and three of the games ran **at the same
   time** at about 112 fps each.
 - **Pressing Play in the app** started the game and showed **Running** and **Stop**.
-- **GTA V Enhanced inside a sandboxed box:** Steam started, then the Rockstar launcher signed in, then
-  `GTA5_Enhanced.exe` started and kept running for about 5 minutes, with the Rockstar launcher reporting the
-  game as active. I couldn't *see* the game screen, because screenshot access to the game window was
-  declined, so please press Play yourself to confirm it reaches Story Mode as before. I stopped it afterwards.
+- **GTA V Enhanced inside a sandboxed box:** Steam, then the Rockstar launcher (signed in), then
+  `GTA5_Enhanced.exe` started inside the box. **You played it there: no issues, close to 60 fps in open
+  gameplay** (with good cooling). For comparison I also started it from your original setup and sampled both
+  the same way: they reach the same state with the same memory use (~1.4–1.5 GB at the start screen), the same
+  28 game archives open and ~97 threads.
+- **Real installers (not made by me):** the setups that came with GTA V were used as real-world examples.
+
+  | Installer | Made with | Result |
+  | --- | --- | --- |
+  | Rockstar Social Club setup (122 MB) | NSIS | **installed quietly in ~15 s** through Set Up, inside the sandbox, with the option `/S` |
+  | Rockstar Games Launcher setup (106 MB) | Rockstar's own | not recognised by name or tool, so marked with **Treat as an Installer**; it ignores `/S` and opens its window waiting for clicks, exactly as on Windows (I can't click inside Wine windows, so I stopped it) |
+  | Microsoft Visual C++ 2015-2022 (x64) | WiX | recognised automatically; **fails under Wine itself** (also outside the sandbox), harmless because Wine already contains those files |
 - **Your original setup was checked** after copying: unchanged.
 - **Leftovers check (from the first part of the boxes work):** a box deleted in Finder while a game was
   running left nothing behind. Its programs were stopped and its temporary files removed.
@@ -129,6 +145,12 @@ file. I packed them in every form MacX should accept:
    like "something changed in the folder". It now ignores the box's own bookkeeping files.
 7. **The old status bar counted games in boxes** as if they were on the old shared drive. Fixed. The old
    "Force Quit" also no longer touches boxes.
+8. **The app froze at launch.** The old *MacX Drive* folder lives on your Desktop, which macOS protects. Each
+   newly built MacX has to be allowed to look at it again, and while macOS waited for that answer, the app's
+   window waited too. MacX now loads boxes first and watches folders in the background, so the window never
+   freezes.
+9. **Real installers aren't always called "setup".** Rockstar's was taken for a game. MacX now also recognises
+   installers by the tool they were made with, and you can correct it with the ⋯ menu.
 
 ## Limits — what this doesn't do (honestly)
 
@@ -143,7 +165,9 @@ file. I packed them in every form MacX should accept:
   why. Adding automatic installs of those parts is a good next step.
 - **The sandbox is a fence, not a virus scanner.** It stops normal programs from touching your files, but only
   run things you trust.
-- **GTA in a box was confirmed by its processes and the launcher, not by a screenshot** (see above).
+- **Microsoft Visual C++ installers fail under Wine** (a Wine limitation). Harmless: games still run.
+- **Some installers ignore "install quietly" options** and need you to click through their window.
+- **macOS may ask whether MacX can access your Desktop folder** (for the older MacX Drive). Click Allow.
 
 ## Where everything is
 
@@ -151,15 +175,15 @@ file. I packed them in every form MacX should accept:
 | --- | --- |
 | The installed app | `~/Applications/MacX.app` (version 0.2.0) |
 | The installer for others | `~/Developer/macx/dist/MacX-0.2.0.dmg` |
-| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*) |
+| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*, *Real Installers*) |
 | User guide | `docs/USER-GUIDE.md` |
 | How it works (technical) | `docs/HOW-IT-WORKS.md`, section 7 |
 | This report | `docs/REPORT-0.2.md` |
 | Work checklist | `docs/PROGRESS.md` |
 | The code | `app/macxbox.py` (boxes), `app/main.swift` (the app), `engine/tests/` (test programs), `scripts/make-test-fixtures.sh` |
-| Saved versions (git) | branch `feature/boxes`: 3 commits on top of 0.1.1, **not pushed to GitHub yet** |
+| Saved versions (git) | branch `feature/boxes`, on top of 0.1.1, **not pushed to GitHub yet** |
 
-To remove the test boxes: drag *Test Lab* (about 0.7 GB) or *GTA Box* to the Trash. *GTA Box* shares its
+To remove the test boxes: drag *Test Lab* (about 0.7 GB), *Real Installers* or *GTA Box* to the Trash. *GTA Box* shares its
 files with your original setup, so deleting it frees only what changed inside it.
 
 ## Next milestone (your plan): a shippable, downloadable MacX

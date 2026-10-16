@@ -25,6 +25,8 @@ finish with a plain-language report (docs/REPORT-0.2.md).
 - [x] Build .dmg + install to ~/Applications, open it, check Boxes page, quit it
 - [x] Final report docs/REPORT-0.2.md (plain language, what/why/how to use/limits)
 - [x] Close everything (no Wine, no MacX running); delete the auto-resume cron job
+- [x] GTA V Enhanced played in a box by the user (~60 fps open gameplay)
+- [x] Real installers: Social Club (NSIS) installed quietly; installer detection by tool + Treat as Installer/Program + Install Options; launcher fixes in boxes; app no longer freezes on the Desktop permission
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 
 ## Rules

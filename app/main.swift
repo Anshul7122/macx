@@ -117,6 +117,8 @@ struct BoxEntry: Codable, Identifiable, Hashable {
     let playable: Bool?
     let source: String?
     let log: String
+    let args: String?
+    let kindSetting: String?
 }
 struct TaskResult: Codable, Hashable { let id: String; let state: String; let message: String }
 struct BoxTask: Codable, Hashable {
@@ -253,7 +255,7 @@ final class FolderWatcher {
         }
         guard let s = FSEventStreamCreate(nil, cb, &ctx, [path] as CFArray,
                                           FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0,
-                                          FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot))
+                                          FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents))
         else { return }
         stream = s
         FSEventStreamSetDispatchQueue(s, DispatchQueue.main)
@@ -303,17 +305,25 @@ final class AppModel: ObservableObject {
 
     func start() async {
         _ = await Backend.call(MsgResp.self, ["setup"])
-        decorateFolder()
-        watcher = FolderWatcher(path: dropPath) { [weak self] in
-            Task { @MainActor in self?.scheduleItemsRefresh() }
-        }
         try? FileManager.default.createDirectory(atPath: boxesPath, withIntermediateDirectories: true)
-        // Boxes added, changed or moved to the Trash in Finder show up here without pressing anything.
-        boxWatcher = FolderWatcher(path: boxesPath, ignore: { $0.contains("/.macx/") || $0.hasSuffix("/.macx") }) { [weak self] in
-            Task { @MainActor in self?.scheduleBoxesRefresh() }
-        }
+        await refreshStatus()
+        await refreshBoxes()   // boxes first: they don't depend on the Desktop folder (which macOS may ask about)
         await refreshAll()
-        await refreshBoxes()
+        // Watching folders talks to the file system (and, for an iCloud-synced Desktop, to iCloud), which can be
+        // slow; it happens off the main thread so the window never freezes waiting for it.
+        let dropW = await Task.detached { FolderWatcher(path: dropPath) {
+            Task { @MainActor in AppModel.shared.scheduleItemsRefresh() }
+        } }.value
+        // Boxes added, changed or moved to the Trash in Finder show up here without pressing anything.
+        let boxW = await Task.detached { FolderWatcher(path: boxesPath, ignore: { $0.contains("/.macx/") || $0.hasSuffix("/.macx") }) {
+            Task { @MainActor in AppModel.shared.scheduleBoxesRefresh() }
+        } }.value
+        watcher = dropW
+        boxWatcher = boxW
+        let needsIcon = await Task.detached {
+            FileManager.default.fileExists(atPath: dropPath) && !FileManager.default.fileExists(atPath: dropPath + "/Icon\r")
+        }.value
+        if needsIcon { decorateFolder() }
     }
 
     func refreshAll() async {
@@ -979,6 +989,16 @@ struct GameRow: View {
                     Label("Play", systemImage: "play.fill")
                 }.buttonStyle(.borderedProminent)
             }
+            if item.source == nil {   // on W:, so MacX guessed what it is
+                Menu {
+                    Button("Treat as an Installer") {
+                        Task { await model.boxAct("Saving…", ["set", box, item.id, "kind", "installer"]) }
+                    }
+                    Button("Show Log") { NSWorkspace.shared.open(URL(fileURLWithPath: item.log)) }
+                        .disabled(!FileManager.default.fileExists(atPath: item.log))
+                } label: { Image(systemName: "ellipsis.circle") }
+                    .menuStyle(.borderlessButton).frame(width: 30).help("More")
+            }
         }.padding(.vertical, 4)
     }
 
@@ -1001,6 +1021,8 @@ struct SetupRow: View {
     let box: String
     let item: BoxEntry
     let busy: Bool
+    @State private var showOptions = false
+    @State private var options = ""
 
     var icon: String {
         switch item.kind {
@@ -1027,6 +1049,31 @@ struct SetupRow: View {
             Button(action: { Task { await model.boxAct("Setting up \(item.name)…", ["setup", box, item.id]) } }) {
                 Text(actionLabel)
             }.disabled(busy)
+            if item.kind == "installer" {
+                Menu {
+                    Button("Install Options…") { options = item.args ?? ""; showOptions = true }
+                    Button("Treat as a Program") {
+                        Task { await model.boxAct("Saving…", ["set", box, item.id, "kind", "program"]) }
+                    }
+                } label: { Image(systemName: "ellipsis.circle") }
+                    .menuStyle(.borderlessButton).frame(width: 30).help("More")
+                    .popover(isPresented: $showOptions) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Options passed to the installer").font(.headline)
+                            Text("Most installers need none: you click through their window. To install without clicking, use /S for NSIS installers, /VERYSILENT for Inno Setup ones (most repacks), /quiet for Microsoft ones.")
+                                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                            TextField("e.g. /S", text: $options).textFieldStyle(.roundedBorder)
+                            HStack {
+                                Spacer()
+                                Button("Cancel") { showOptions = false }
+                                Button("Save") {
+                                    showOptions = false
+                                    Task { await model.boxAct("Saving…", ["set", box, item.id, "args", options]) }
+                                }.keyboardShortcut(.defaultAction)
+                            }
+                        }.padding(14).frame(width: 340)
+                    }
+            }
         }.padding(.vertical, 4)
     }
 

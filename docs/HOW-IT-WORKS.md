@@ -112,6 +112,11 @@ crash reporters, redistributables are skipped when picking "the" exe), installer
 `.msi`, or a folder whose only programs are setups, which covers *setup.exe + data-N.bin* repacks), archive,
 split archive (`.7z.001`, `.zip.001`; the later parts are hidden), disc image, shortcut, script.
 
+Installers that aren't named like one are recognised by the marks their tool leaves in the first and last
+2 MB of the file (Inno Setup, Nullsoft/NSIS, InstallShield, `.wixburn`, 7-Zip SFX, Setup Factory, ...). Custom
+installers (Rockstar's, for one) carry none, so the user can override the classification per item, and give
+installers options (`/VERYSILENT`, `/S`, `/quiet`).
+
 **Set Up** starts a detached worker (`macxctl.py box _work`) that takes the pending items one at a time and
 records each result in `.macx/state.json` (kept apart from `box.json`, which the app rewrites):
 archives are unpacked with macOS's own `bsdtar` (zip, 7z, rar, tar; split parts are joined first) into a
@@ -147,6 +152,20 @@ Findings that shaped this:
 - **DXVK for macOS is too old for 32-bit and DirectX 9 now.** DXVK-macOS 1.10.3 (2023) against the MoltenVK
   1.4 that ships with Wine 11: 32-bit DirectX 11 fails in `vkCreateBuffer` (external memory handle type) and
   DirectX 9 in `vkCreateDevice` (geometry shader feature). DXMT's 32-bit build and wined3d cover those games.
+
+**Launchers installed into a box** get what the shared setup's Repair gives them: Steam's and the Rockstar
+launcher's Chromium helpers are wrapped (`--in-process-gpu`), and the Rockstar executables are set to DXVK
+with D3DMetal's `d3d12` / `nvapi64` hidden (written with `regedit` once, then left alone).
+
+Real installers tried: Rockstar's Social Club setup (NSIS, 122 MB) installs quietly in about 15 s; the Rockstar
+Games Launcher's own installer ignores `/S` and waits for clicks, as on Windows; Microsoft's VC++ 2015-2022
+redistributable (WiX Burn) fails under Wine 11 itself (`Failed to extract all files from container, erf
+1:2:0`, also outside the sandbox and from C:), which is harmless because Wine ships msvcp140/vcruntime140.
+
+**The app and the Desktop folder.** The legacy drive folder lives on the Desktop, which macOS protects:
+opening it (FSEvents' watch-root opens every parent directory) blocks while macOS waits for the user to allow
+access, and an ad-hoc-signed app is asked again after every rebuild. The app therefore loads boxes first and
+starts its folder watches off the main thread, so a pending prompt can't freeze the window.
 
 **Copy of the shared setup.** `box clone-main` is `cp -cR` of the shared prefix into a new box (1.7 s for a
 100 GB Steam + GTA V install, no extra disk), keeping its MachineGuid (it is the same PC) and then applying

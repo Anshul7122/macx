@@ -159,6 +159,9 @@ def sandbox_profile(name):
         "(deny file-read-data (subpath %s))" % q(home),
         "(allow %s file-write* (subpath %s))" % (read, q(box)),
         "(allow %s (subpath %s))" % (read, q(ENGINES_DIR)),
+        # keyboard layouts and input methods the user installed, so typing works with their layout
+        "(allow %s (subpath %s))" % (read, q(os.path.join(M.HOME, "Library", "Keyboard Layouts"))),
+        "(allow %s (subpath %s))" % (read, q(os.path.join(M.HOME, "Library", "Input Methods"))),
     ])
 
 
@@ -581,11 +584,46 @@ def disc_letters(name):
     return {d["letter"]: d["mount"] for d in load_state(name)["disks"].values()}
 
 
+ROCKSTAR_EXES = ("Launcher.exe", "SocialClubHelper.exe", "SocialClubHelper_real.exe", "RockstarService.exe")
+ROCKSTAR_OVERRIDES = {"d3d11": "native,builtin", "dxgi": "native,builtin", "d3d10core": "native,builtin",
+                      "d3d12": "", "nvapi64": "", "atidxx64": ""}
+
+
+def launcher_fixes(name):
+    """What the Steam and Rockstar launchers need to draw under Wine, the same fixes the shared setup gets from
+    Repair: their Chromium helpers are wrapped (--in-process-gpu), and the Rockstar launcher's windows use DXVK
+    with D3DMetal's DirectX 12 / GPU-vendor DLLs hidden from it (the game itself keeps D3DMetal). Applied when
+    those launchers get installed into a box, e.g. by a game's installer."""
+    c = os.path.join(prefix(name), "drive_c")
+    M.apply_cef_wrappers(c)
+    if not os.path.isdir(os.path.join(c, "Program Files", "Rockstar Games", "Launcher")):
+        return
+    try:
+        with open(os.path.join(prefix(name), "user.reg"), encoding="utf-8", errors="replace") as f:
+            reg = f.read()
+    except OSError:
+        reg = ""
+    missing = [e for e in ROCKSTAR_EXES if "AppDefaults\\\\%s\\\\DllOverrides" % e not in reg]   # doubled in .reg
+    if not missing:
+        return
+    lines = ["Windows Registry Editor Version 5.00", ""]
+    for e in missing:
+        lines.append("[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\%s\\DllOverrides]" % e)
+        lines += ['"%s"="%s"' % kv for kv in ROCKSTAR_OVERRIDES.items()]
+        lines.append("")
+    with open(meta(name, "launcher-fixes.reg"), "w", encoding="utf-16") as f:
+        f.write("\r\n".join(lines))
+    subprocess.run([M.ENGINES["wine11"]["wine"], "regedit", "/S", "W:\\%s\\launcher-fixes.reg" % META],
+                   env=M.wine_env({"WINEPREFIX": prefix(name)}, "wine11"), stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, timeout=120)
+
+
 def spawn(name, choice, cmd, cwd, log_name, bits=None):
     """Runs a Windows command in the box: sandboxed, on the engine for this graphics choice. Returns the Popen."""
     eng, extra = engine_env(choice)
     contain_prefix(prefix(name), box_path(name), keep=disc_letters(name))
     copy_dxvk(os.path.join(prefix(name), "drive_c", "windows"))
+    launcher_fixes(name)
     if choice == "dxmt":
         place_dxmt(cwd, bits)
     elif os.path.isdir(cwd):
@@ -612,6 +650,32 @@ DISK_RE = re.compile(r"\.(iso|img)$", re.I)
 DISC_SETUP_RE = re.compile(r"(setup|install|autorun)\.(exe|msi)$", re.I)
 
 
+INSTALLER_MARKS = [m for t in ("Inno Setup", "Nullsoft", "InstallShield", "Setup Factory", "Smart Install Maker",
+                                 "Wise Installation") for m in (t.encode(), t.encode("utf-16-le"))] + [
+    b".wixburn", b";!@Install@!UTF-8!", b"NullsoftInst"]
+
+
+def looks_like_installer(path, data):
+    """True when a program was made with a common installer tool (Inno Setup, which repacks use, NSIS,
+    InstallShield, WiX, 7-Zip SFX, ...), found by the tool's marks in the first and last 2 MB. Cached."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return False
+    key = "inst:" + path
+    c = data["detect"].get(key)
+    if c and c.get("mtime") == int(st.st_mtime) and c.get("size") == st.st_size:
+        return c["installer"]
+    with open(path, "rb") as f:
+        blob = f.read(2 << 20)
+        if st.st_size > 4 << 20:
+            f.seek(st.st_size - (2 << 20))
+            blob += f.read()
+    found = any(m in blob for m in INSTALLER_MARKS)
+    data["detect"][key] = {"mtime": int(st.st_mtime), "size": st.st_size, "installer": found}
+    return found
+
+
 def pick_setup(setups):
     return sorted(setups, key=lambda e: (e.count(os.sep), not re.match(r"setup\.exe$", os.path.basename(e), re.I),
                                          e.lower()))[0]
@@ -633,6 +697,10 @@ def file_items(name, data, st, running):
             exes = M.list_exes(path) + sorted(os.path.relpath(p, path) for p in glob.glob(os.path.join(path, "*.msi")))
             playable = [e for e in exes if e.lower().endswith(".exe") and not M.SKIP_EXE.search(os.path.basename(e))]
             setups = [e for e in exes if e.lower().endswith(".msi") or M.INSTALLER_RE.search(os.path.basename(e))]
+            if playable and len(playable) <= 3 and all(looks_like_installer(os.path.join(path, e), data) for e in playable):
+                setups, playable = playable + setups, []   # e.g. "Game Installer.exe" + its data files
+            if cfg.get("kind") == "installer" and (playable or setups):
+                setups, playable = setups or playable, []
             if playable:
                 kind = "folder"
                 main = cfg.get("exe") if cfg.get("exe") in exes else M.guess_main_exe(path, playable)
@@ -647,8 +715,11 @@ def file_items(name, data, st, running):
             kind = "disk"
         else:
             kind = M.EXT_KIND.get(ext.lower(), "file")
-            if kind == "program" and M.INSTALLER_RE.search(entry):
+            if kind == "program" and (M.INSTALLER_RE.search(entry) or cfg.get("kind") == "installer"
+                                      or looks_like_installer(path, data)):
                 kind = "installer"
+            if kind == "installer" and cfg.get("kind") == "program" and ext.lower() == ".exe":
+                kind = "program"   # the user says it's a program after all
             if kind in ("program", "installer"):
                 exes, main = [entry], entry
         info = {"apis": []}
@@ -672,7 +743,8 @@ def file_items(name, data, st, running):
             "kind": kind, "path": path, "winPath": win, "mainExe": main, "exes": exes,
             "api": M.api_label(info.get("apis", [])), "bits": info.get("bits"),
             "choice": norm_choice(cfg.get("engine", "auto")), "auto": auto_choice(info),
-            "args": cfg.get("args", ""), "running": bool(procs), "pids": [p["pid"] for p in procs],
+            "args": cfg.get("args", ""), "kindSetting": cfg.get("kind", "auto"),
+            "running": bool(procs), "pids": [p["pid"] for p in procs],
             "state": s or "", "status": status, "pending": kind in ("archive", "installer", "disk") and s not in (
                 "unpacked", "installed"),
             "playable": kind in ("program", "folder") and bool(main),
@@ -922,8 +994,10 @@ def stop_item(name, item_id):
 
 def set_item(name, item_id, field, value):
     check_box(name)
-    if field not in ("engine", "args", "exe"):
+    if field not in ("engine", "args", "exe", "kind"):
         M.fail("unknown setting")
+    if field == "kind" and value not in ("auto", "installer", "program"):
+        M.fail("kind must be auto, installer or program")
     if field == "engine" and norm_choice(value) != value:
         M.fail("unknown engine")
     data = load_box(name)
@@ -1065,6 +1139,14 @@ def start_setup(name, ids=None):
         len(ids), "" if len(ids) == 1 else "s", name)}
 
 
+def setup_message(code):
+    if code == 0:
+        return "Installed"
+    if code < 0:
+        return "Stopped before it finished"
+    return "Setup ended with error code %d" % code
+
+
 def work(name, ids):
     """The setup worker: unpacks, inserts discs, runs installers, one after another, waiting for each."""
     os.makedirs(meta(name, "logs"), exist_ok=True)
@@ -1107,14 +1189,18 @@ def work(name, ids):
                     cmd = ["msiexec", "/i", win] if exe.lower().endswith(".msi") else [win]
                     code = spawn(name, "wine", cmd, d["mount"], iid).wait()
                     record(iid, "installed" if code == 0 else "failed",
-                           "Installed" if code == 0 else "Setup ended with error code %d" % code)
+                           setup_message(code))
             elif it["kind"] == "installer":
                 update("Installing %s" % it["name"])
                 exe = os.path.join(it["path"], it["mainExe"]) if os.path.isdir(it["path"]) else it["path"]
                 cmd = ["msiexec", "/i", it["winPath"]] if exe.lower().endswith(".msi") else [it["winPath"]]
+                try:
+                    cmd += shlex.split(it.get("args") or "")   # e.g. /S (NSIS) or /VERYSILENT (Inno Setup)
+                except ValueError:
+                    pass
                 code = spawn(name, "wine", cmd, os.path.dirname(exe), iid).wait()
                 record(iid, "installed" if code == 0 else "failed",
-                       "Installed" if code == 0 else "Setup ended with error code %d" % code)
+                       setup_message(code))
         except Exception as e:   # one bad item must not stop the rest
             record(iid, "failed", str(e)[:300])
         done += 1

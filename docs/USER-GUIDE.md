@@ -59,6 +59,15 @@ MacX goes through them **one at a time** and shows its progress in an orange bar
 When you add files through MacX, Set Up starts by itself. Each item then shows **Installed** or
 **Unpacked** (or an error message; see "When something goes wrong").
 
+**Installers MacX didn't recognise.** MacX spots installers by their name (`setup…`, `install…`) and by what
+they're made with (Inno Setup, which most repacks use, NSIS, InstallShield, Microsoft's installers…). If an
+installer still shows up as a game, open its **⋯** menu → **Treat as an Installer**. If something was wrongly
+taken for an installer, use **⋯** → **Treat as a Program** under *Installers, archives & discs*.
+
+**Installing without clicking.** In an installer's **⋯** menu → **Install Options…** you can give it options,
+as you would on Windows: `/VERYSILENT` for Inno Setup installers (most repacks), `/S` for NSIS ones, `/quiet` for
+Microsoft ones. Not every installer listens to these; those simply open their window as usual.
+
 ## 5. Play
 
 Everything playable is listed under **Games & programs**: games that got installed (MacX finds their
@@ -99,6 +108,10 @@ Quit Steam before using either.
   what Wine printed while running the installer or game. Useful when asking for help.
 - **"Setup ended with error code …"**: the installer reported a problem. Press **Install Again**. Some
   "repack" installers need a lot of memory; close other apps first.
+- **Microsoft Visual C++ installers** (`VC_redist…exe`, often bundled with games) fail under Wine. That's
+  harmless: Wine already contains those files, so the game itself still runs.
+- **macOS asks whether MacX may access your Desktop folder**: click **Allow**. The older *MacX Drive* folder
+  lives on the Desktop; boxes don't need it.
 - **An archive won't unpack**: multi-part RAR files (`.part1.rar`, `.part2.rar`) must be unpacked with an app
   like *The Unarchiver* or *Keka* first; then add the unpacked folder.
 - **The game doesn't appear after installing**: MacX looks for the game's shortcuts and for Windows' list of
