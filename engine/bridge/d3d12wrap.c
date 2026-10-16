@@ -1,4 +1,4 @@
-/* d3d12.dll wrapper for D3DMetal on Wine 11 (GTAV-Mac project). Apple's D3DMetal d3d12.dll is renamed d3dmt.dll;
+/* d3d12.dll wrapper for D3DMetal on Wine 11 (MacX). Apple's D3DMetal d3d12.dll is renamed d3dmt.dll;
  * most exports forward to it. This wrapper adds what DirectX 12 Agility SDK titles (GTA V Enhanced) need:
  *  - D3D12GetInterface (ID3D12SDKConfiguration / ID3D12DeviceFactory), missing from D3DMetal;
  *  - d3d12core.dll resident in the process, as on Windows (the game checks; Wine's placeholder suffices);

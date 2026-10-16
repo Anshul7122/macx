@@ -118,14 +118,14 @@ struct PathsResp: Codable { let ok: Bool; let error: String?; let paths: [PathIt
 let dropPath: String = {
     let home = NSHomeDirectory(), fm = FileManager.default
     let legacy = fm.fileExists(atPath: home + "/GTAV-Mac/prefix11") && !fm.fileExists(atPath: home + "/Library/Application Support/MacX/prefix")
-    return home + (legacy && ProcessInfo.processInfo.environment["WP_ROOT"] == nil ? "/Desktop/MacX" : "/Desktop/MacX")
+    return home + (legacy && ProcessInfo.processInfo.environment["MACX_ROOT"] == nil ? "/Desktop/MacX" : "/Desktop/MacX")
 }()
 
 // MARK: - Backend bridge
 
 enum Backend {
     static var script: String {
-        Bundle.main.path(forResource: "wpctl", ofType: "py") ?? "wpctl.py"
+        Bundle.main.path(forResource: "macxctl", ofType: "py") ?? "macxctl.py"
     }
 
     static func raw(_ args: [String]) async -> Data {

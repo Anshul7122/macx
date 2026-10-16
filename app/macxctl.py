@@ -22,14 +22,14 @@ HOME = os.path.expanduser("~")
 USER = os.environ.get("USER") or os.path.basename(HOME)
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Engine kit: our compiled bridge (see scripts/build-engine-kit.sh). Inside the app bundle it sits next to this file.
-KIT = os.environ.get("WP_KIT") or next(
+KIT = os.environ.get("MACX_KIT") or next(
     (p for p in (os.path.join(HERE, "engine-kit"), os.path.join(HERE, "..", "build", "engine-kit")) if os.path.isdir(p)),
     os.path.join(HERE, "engine-kit"))
 SUPPORT = os.path.join(HOME, "Library", "Application Support", "MacX")
 LEGACY = os.path.join(HOME, "GTAV-Mac")   # the original hand-built setup this project grew out of
-LEGACY_LAYOUT = (not os.environ.get("WP_ROOT") and os.path.isdir(os.path.join(LEGACY, "prefix11"))
+LEGACY_LAYOUT = (not os.environ.get("MACX_ROOT") and os.path.isdir(os.path.join(LEGACY, "prefix11"))
                  and not os.path.isdir(os.path.join(SUPPORT, "prefix")))
-ROOT = os.environ.get("WP_ROOT") or (LEGACY if LEGACY_LAYOUT else SUPPORT)
+ROOT = os.environ.get("MACX_ROOT") or (LEGACY if LEGACY_LAYOUT else SUPPORT)
 if LEGACY_LAYOUT:
     PREFIX = os.path.join(ROOT, "prefix11")
     WINE_APP = os.path.join(ROOT, "wine11", "Wine Devel.app")
@@ -54,7 +54,7 @@ WINE_RES = os.path.join(WINE_APP, "Contents", "Resources", "wine")
 WINEBIN = os.path.join(WINE_RES, "bin")
 WINE_LIB = os.path.join(WINE_RES, "lib", "wine")
 D3DM_BIN = os.path.join(D3DM_APP, "Contents", "Resources", "wine", "bin")
-GPTK_APP = os.environ.get("WP_GPTK") or next(
+GPTK_APP = os.environ.get("MACX_GPTK") or next(
     (p for p in ("/Applications/Game Porting Toolkit.app", os.path.join(HOME, "Applications", "Game Porting Toolkit.app"))
      if os.path.isdir(p)), "/Applications/Game Porting Toolkit.app")
 GPTK_BIN = os.path.join(GPTK_APP, "Contents", "Resources", "wine", "bin")
@@ -1448,14 +1448,14 @@ def main():
         fail("no command")
     c = a[0]
     if c in ("preflight", "install", "install-steam", "install-status"):
-        import wpinstall
+        import macxinstall
         sys.argv = [sys.argv[0], "status" if c == "install-status" else c]
-        res = {"preflight": lambda: {"checks": wpinstall.preflight()}, "install": wpinstall.install,
-               "install-steam": wpinstall.install_steam}.get(c)
+        res = {"preflight": lambda: {"checks": macxinstall.preflight()}, "install": macxinstall.install,
+               "install-steam": macxinstall.install_steam}.get(c)
         if res:
             return out(res())
         try:
-            with open(wpinstall.STATUS) as f:
+            with open(macxinstall.STATUS) as f:
                 return out(json.load(f))
         except OSError:
             return out({"step": "", "done": False})

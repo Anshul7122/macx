@@ -18,7 +18,7 @@ swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos14 "$REPO/
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$B/MacX" "$APP/Contents/MacOS/"
-cp "$REPO/app/wpctl.py" "$REPO/app/wpinstall.py" "$B/AppIcon.icns" "$APP/Contents/Resources/"
+cp "$REPO/app/macxctl.py" "$REPO/app/macxinstall.py" "$B/AppIcon.icns" "$APP/Contents/Resources/"
 cp -R "$B/engine-kit" "$APP/Contents/Resources/engine-kit"
 sed "s/<string>1.0<\/string>/<string>$VERSION<\/string>/" "$REPO/app/Info.plist" > "$APP/Contents/Info.plist"
 cp "$REPO/LICENSE" "$REPO/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/" 2>/dev/null || true

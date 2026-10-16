@@ -7,7 +7,7 @@
 +}
 +
 +/***********************************************************************
-+ *              DXMT + D3DMetal compatibility (GTAV-Mac project)
++ *              DXMT + D3DMetal compatibility (MacX)
 + *
 + * DXMT (github.com/3Shain/dxmt) and Apple's D3DMetal look up an exported
 + * "macdrv_functions" table, as provided by CrossOver-derived Wine. Upstream
@@ -99,7 +99,7 @@
 +/***********************************************************************
 + *              macdrv_dxmt_window_content_view
 + *
-+ * GTAV-Mac project: DXMT compatibility. Returns the WineContentView that
++ * MacX: DXMT compatibility. Returns the WineContentView that
 + * fills a Wine window, so DXMT can attach its Metal view to it.
 + */
 +WineContentView *macdrv_dxmt_window_content_view(WineWindow *window)

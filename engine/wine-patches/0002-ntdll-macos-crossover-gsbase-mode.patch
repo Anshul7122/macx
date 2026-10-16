@@ -5,7 +5,7 @@
   */
  extern void _thread_set_tsd_base(uint64_t);
 +
-+/* GTAV-Mac (CrossOver mode): GSBASE always points at the pthread TSD, so native macOS code
++/* MacX (CrossOver mode): GSBASE always points at the pthread TSD, so native macOS code
 + * (including Apple's D3DMetal, which PE code calls directly) keeps working. Windows code reaches
 + * its TEB through the TSD slots Apple reserves for Wine: Self (0x30) and TLS (0x58), plus the PEB in
 + * slot 12 (0x60), which is swapped with libc's value at every Windows/Unix transition. */
@@ -42,7 +42,7 @@
      DWORD                 fs;            /* 0338 WOW TEB selector */
      DWORD                 mxcsr;         /* 033c Unix-side mxcsr register */
      char                  syscall_dispatch; /* 0340 */
-+    void                 *libc_tsd12;    /* 0348 GTAV-Mac: libc's TSD slot 12 while Windows code runs */
++    void                 *libc_tsd12;    /* 0348 MacX: libc's TSD slot 12 while Windows code runs */
  };
  
  C_ASSERT( sizeof(struct amd64_thread_data) <= sizeof(((struct teb_data *)0)->cpu_data) );
@@ -68,7 +68,7 @@
          !is_inside_syscall( data, RSP_sig(sigcontext )))
 -        _thread_set_tsd_base( (uint64_t)data->teb );
 +    {
-+        mac_mirror_teb_slots( data->teb );   /* GTAV-Mac: CrossOver mode */
++        mac_mirror_teb_slots( data->teb );   /* MacX: CrossOver mode */
 +        mac_slot12_to_windows( data->teb );
 +    }
  #endif
@@ -84,11 +84,11 @@
 -                   "movl $0x3000003,%eax\n\t"  /* _thread_set_tsd_base */
 -                   "syscall\n\t"
 -                   "movq %r10,%rcx\n\t"
-+                   /* GTAV-Mac (CrossOver mode): GSBASE stays on the pthread TSD */
-+                   "movq %r13,%gs:0x30\n\t"        /* GTAV-Mac: mirror TEB->Self into macOS TSD slot 6 */
++                   /* MacX (CrossOver mode): GSBASE stays on the pthread TSD */
++                   "movq %r13,%gs:0x30\n\t"        /* MacX: mirror TEB->Self into macOS TSD slot 6 */
 +                   "movq 0x58(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x58\n\t"        /* TLS pointer -> slot 11 */
-+                   "movq %gs:0x60,%r11\n\t"        /* GTAV-Mac: save libc's slot 12 (localtime buffer) */
++                   "movq %gs:0x60,%r11\n\t"        /* MacX: save libc's slot 12 (localtime buffer) */
 +                   "movq %r11,0x348(%r13)\n\t"     /* amd64_thread_data()->libc_tsd12 */
 +                   "movq 0x60(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x60\n\t"        /* PEB -> slot 12 while Windows code runs */
@@ -100,7 +100,7 @@
  
      if (!data->teb) return FALSE;
 +#ifdef __APPLE__
-+    return FALSE;  /* GTAV-Mac: GSBASE is never switched to the TEB */
++    return FALSE;  /* MacX: GSBASE is never switched to the TEB */
 +#endif
      if (CS_sig(ucontext) != cs64_sel) return FALSE;
      if (((ERROR_sig(ucontext) >> 1) & 0x09) == EXCEPTION_EXECUTE_FAULT) return FALSE;
@@ -118,7 +118,7 @@
  __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                     __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_gs_load") ":\n\t"
 -                   "movq %gs:0x378,%rcx\n\t"       /* thread_data->syscall_frame */
-+                   "movq %gs:0x30,%rcx\n\t"        /* GTAV-Mac: teb via TSD slot 6 */
++                   "movq %gs:0x30,%rcx\n\t"        /* MacX: teb via TSD slot 6 */
 +                   "movq 0x378(%rcx),%rcx\n\t"     /* thread_data->syscall_frame */
                     "popq 0x70(%rcx)\n\t"           /* frame->rip */
                     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
@@ -132,9 +132,9 @@
 -                   "movl $0x3000003,%eax\n\t"      /* _thread_set_tsd_base */
 -                   "syscall\n\t"
 -                   "leaq -0x98(%rbp),%rcx\n"
-+                   "movq 0x348(%r13),%rdi\n\t"     /* GTAV-Mac: libc's slot 12 back (PEB was there) */
++                   "movq 0x348(%r13),%rdi\n\t"     /* MacX: libc's slot 12 back (PEB was there) */
 +                   "movq %rdi,%gs:0x60\n\t"
-+                   "leaq -0x98(%rbp),%rcx\n"        /* GTAV-Mac: GSBASE already the pthread TSD */
++                   "leaq -0x98(%rbp),%rcx\n"        /* MacX: GSBASE already the pthread TSD */
  #endif
                     "ldmxcsr 0x33c(%r13)\n\t"       /* amd64_thread_data()->mxcsr */
                     "movl 0xb0(%rcx),%eax\n\t"      /* frame->syscall_id */
@@ -150,10 +150,10 @@
 -                   "syscall\n\t"
 -                   "movq %rdx,%rcx\n\t"
 -                   "movq %r8,%rax\n\t"
-+                   "movq %r13,%gs:0x30\n\t"        /* GTAV-Mac: mirror TEB->Self into macOS TSD slot 6 */
++                   "movq %r13,%gs:0x30\n\t"        /* MacX: mirror TEB->Self into macOS TSD slot 6 */
 +                   "movq 0x58(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x58\n\t"        /* TLS pointer -> slot 11 */
-+                   "movq %gs:0x60,%r11\n\t"        /* GTAV-Mac: save libc's slot 12 (localtime buffer) */
++                   "movq %gs:0x60,%r11\n\t"        /* MacX: save libc's slot 12 (localtime buffer) */
 +                   "movq %r11,0x348(%r13)\n\t"     /* amd64_thread_data()->libc_tsd12 */
 +                   "movq 0x60(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x60\n\t"        /* PEB -> slot 12 while Windows code runs */
@@ -165,7 +165,7 @@
                     "iretq\n"
                     /* RESTORE_FLAGS_INSTRUMENTATION */
 -                   "2:\tmovq %gs:0x330,%r10\n\t"  /* amd64_thread_data()->instrumentation_callback */
-+                   "2:\tmovq %gs:0x30,%r10\n\t"   /* GTAV-Mac: teb via TSD slot 6 */
++                   "2:\tmovq %gs:0x30,%r10\n\t"   /* MacX: teb via TSD slot 6 */
 +                   "movq 0x330(%r10),%r10\n\t"  /* amd64_thread_data()->instrumentation_callback */
                     "movq (%r10),%r10\n\t"
                     "test %r10,%r10\n\t"
@@ -175,7 +175,7 @@
  
  __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher_instrumentation,
 -                   "movq %gs:0x378,%rcx\n\t"       /* thread_data->syscall_frame */
-+                   "movq %gs:0x30,%rcx\n\t"        /* GTAV-Mac: teb via TSD slot 6 */
++                   "movq %gs:0x30,%rcx\n\t"        /* MacX: teb via TSD slot 6 */
 +                   "movq 0x378(%rcx),%rcx\n\t"     /* thread_data->syscall_frame */
                     "popq 0x70(%rcx)\n\t"           /* frame->rip */
                     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
@@ -185,7 +185,7 @@
                     "movq %rcx,%r10\n\t"
                     __ASM_LOCAL_LABEL("__wine_unix_call_dispatcher_gs_load") ":\n\t"
 -                   "movq %gs:0x378,%rcx\n\t"       /* thread_data->syscall_frame */
-+                   "movq %gs:0x30,%rcx\n\t"        /* GTAV-Mac: teb via TSD slot 6 */
++                   "movq %gs:0x30,%rcx\n\t"        /* MacX: teb via TSD slot 6 */
 +                   "movq 0x378(%rcx),%rcx\n\t"     /* thread_data->syscall_frame */
                     "popq 0x70(%rcx)\n\t"           /* frame->rip */
                     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
@@ -198,7 +198,7 @@
 -                   "xorl %esi,%esi\n\t"
 -                   "movl $0x3000003,%eax\n\t"      /* _thread_set_tsd_base */
 -                   "syscall\n\t"
-+                   /* GTAV-Mac: GSBASE already the pthread TSD; give libc its slot 12 back */
++                   /* MacX: GSBASE already the pthread TSD; give libc its slot 12 back */
 +                   "movq 0x348(%r13),%rdi\n\t"
 +                   "movq %rdi,%gs:0x60\n\t"
  #endif
@@ -216,10 +216,10 @@
 -                   "syscall\n\t"
 -                   "movq %r14,%rcx\n\t"
 -                   "movq %rdx,%rax\n\t"
-+                   "movq %r13,%gs:0x30\n\t"        /* GTAV-Mac: mirror TEB->Self into macOS TSD slot 6 */
++                   "movq %r13,%gs:0x30\n\t"        /* MacX: mirror TEB->Self into macOS TSD slot 6 */
 +                   "movq 0x58(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x58\n\t"        /* TLS pointer -> slot 11 */
-+                   "movq %gs:0x60,%r11\n\t"        /* GTAV-Mac: save libc's slot 12 (localtime buffer) */
++                   "movq %gs:0x60,%r11\n\t"        /* MacX: save libc's slot 12 (localtime buffer) */
 +                   "movq %r11,0x348(%r13)\n\t"     /* amd64_thread_data()->libc_tsd12 */
 +                   "movq 0x60(%r13),%r11\n\t"
 +                   "movq %r11,%gs:0x60\n\t"        /* PEB -> slot 12 while Windows code runs */

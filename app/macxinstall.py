@@ -15,7 +15,7 @@ import tarfile
 import time
 import urllib.request
 
-import wpctl as W
+import macxctl as W
 
 PINS = {
     "wine": ("https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.18/wine-devel-11.18-osx64.tar.xz",
@@ -289,4 +289,4 @@ if __name__ == "__main__":
         except OSError:
             W.out({"step": "", "done": False})
     else:
-        W.fail("usage: wpinstall.py preflight|install|install-steam|status")
+        W.fail("usage: macxinstall.py preflight|install|install-steam|status")

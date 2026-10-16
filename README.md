@@ -53,7 +53,7 @@ scripts/build-app.sh --dmg      # dist/MacX.app and the .dmg
 
 | Path | What |
 |---|---|
-| `app/` | SwiftUI app (`main.swift`), backend (`wpctl.py`), installer (`wpinstall.py`) |
+| `app/` | SwiftUI app (`main.swift`), backend (`macxctl.py`), installer (`macxinstall.py`) |
 | `engine/wine-patches/` | Patches to Wine 11.18 (`winemac.drv`, `ntdll`) |
 | `engine/bridge/` | `ntdlx.dll`, the `d3d12` wrapper (+ unix side), PE patchers |
 | `engine/wrap/` | Chromium helper wrapper (Steam / Rockstar launcher windows) |

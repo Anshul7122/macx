@@ -1,4 +1,4 @@
-/* Unix side of the GTAV-Mac d3d12 wrapper: a single Wine unix call that writes a pointer into
+/* Unix side of the MacX d3d12 wrapper: a single Wine unix call that writes a pointer into
  * read-only memory (D3DMetal's shared ID3D12CommandQueue vtable lives in a read-only Mach-O segment). */
 #include <mach/mach.h>
 #include <stdint.h>
