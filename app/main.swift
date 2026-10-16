@@ -99,6 +99,25 @@ struct StorageItem: Codable, Identifiable, Hashable {
     let note: String
 }
 
+struct BoxItem: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let kind: String
+    let path: String
+    let mainExe: String?
+    let api: String?
+    let engine: String?
+    let effectiveEngine: String?
+}
+struct WinBox: Codable, Identifiable, Hashable {
+    var id: String { name }
+    let name: String
+    let path: String
+    let running: Bool
+    let items: [BoxItem]
+}
+struct BoxesResp: Codable { let ok: Bool; let error: String?; let boxes: [WinBox]?; let root: String?; let canMigrate: Bool? }
+
 struct Check: Codable, Hashable { let name: String; let status: String }
 struct PathItem: Codable, Hashable { let name: String; let path: String }
 
@@ -115,6 +134,7 @@ struct RepairResp: Codable { let ok: Bool; let error: String?; let checks: [Chec
 struct PathsResp: Codable { let ok: Bool; let error: String?; let paths: [PathItem]? }
 
 let dropPath = NSHomeDirectory() + "/Desktop/MacX"
+let boxesPath = ProcessInfo.processInfo.environment["MACX_BOXES"] ?? NSHomeDirectory() + "/MacX Boxes"
 
 // MARK: - Backend bridge
 
@@ -226,8 +246,12 @@ final class AppModel: ObservableObject {
     @Published var paths: [PathItem] = []
     @Published var busy: String?
     @Published var banner: (text: String, isError: Bool)?
+    @Published var boxes: [WinBox] = []
+    @Published var canMigrate = false
     private var timer: Timer?
     private var watcher: FolderWatcher?
+    private var boxWatcher: FolderWatcher?
+    private var boxesPending = false
     private var itemsPending = false
 
     init() {
@@ -243,7 +267,13 @@ final class AppModel: ObservableObject {
         watcher = FolderWatcher(path: dropPath) { [weak self] in
             Task { @MainActor in self?.scheduleItemsRefresh() }
         }
+        try? FileManager.default.createDirectory(atPath: boxesPath, withIntermediateDirectories: true)
+        // Boxes added, changed or moved to the Trash in Finder show up here without pressing anything.
+        boxWatcher = FolderWatcher(path: boxesPath) { [weak self] in
+            Task { @MainActor in self?.scheduleBoxesRefresh() }
+        }
         await refreshAll()
+        await refreshBoxes()
     }
 
     func refreshAll() async {
@@ -271,6 +301,29 @@ final class AppModel: ObservableObject {
                 await self?.refreshItems()
             }
         }
+    }
+
+    func scheduleBoxesRefresh() {
+        if boxesPending { return }
+        boxesPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            Task { @MainActor in
+                self?.boxesPending = false
+                await self?.refreshBoxes()
+            }
+        }
+    }
+
+    func refreshBoxes() async {
+        if let r = await Backend.call(BoxesResp.self, ["box", "list"]), let list = r.boxes {
+            boxes = list
+            canMigrate = r.canMigrate ?? false
+        }
+    }
+
+    func boxAct(_ label: String, _ args: [String]) async {
+        await act(label, ["box"] + args)
+        await refreshBoxes()
     }
 
     func refreshItems() async {
@@ -406,13 +459,14 @@ struct MacXApp: App {
 }
 
 enum NavSection: String, CaseIterable, Identifiable {
-    case pc = "This PC", folder = "MacX Drive", programs = "Programs", steam = "Steam", storage = "Storage",
+    case pc = "This PC", folder = "MacX Drive", boxes = "Boxes", programs = "Programs", steam = "Steam", storage = "Storage",
          tools = "Tools", help = "Help"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .pc: return "desktopcomputer"
         case .folder: return "folder.fill"
+        case .boxes: return "shippingbox"
         case .programs: return "square.grid.2x2"
         case .steam: return "gamecontroller"
         case .storage: return "internaldrive"
@@ -447,6 +501,7 @@ struct ContentView: View {
                     switch section ?? .folder {
                     case .pc: ThisPCView()
                     case .folder: FolderView()
+                    case .boxes: BoxesView()
                     case .programs: ProgramsView()
                     case .steam: GamesView()
                     case .storage: StorageView()
@@ -622,6 +677,155 @@ func loadURLs(_ providers: [NSItemProvider], _ done: @escaping ([URL]) -> Void) 
         }
     }
     group.notify(queue: .main) { done(urls) }
+}
+
+// MARK: - Boxes
+
+/// One folder in ~/MacX Boxes = one sealed-off Windows PC. The Windows side (registry, C:, saves) lives in the
+/// folder's hidden .macx, so deleting the folder in Finder deletes everything.
+struct BoxesView: View {
+    @EnvironmentObject var model: AppModel
+    @State private var selected: String?
+    @State private var confirmDelete: WinBox?
+    @State private var confirmMigrate = false
+
+    var body: some View {
+        HSplitView {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Boxes").font(.title2.weight(.semibold))
+                    Text("Each folder is its own Windows PC").font(.caption).foregroundStyle(.secondary)
+                }.padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 8)
+                List(model.boxes, selection: $selected) { b in
+                    HStack(spacing: 10) {
+                        Image(systemName: "shippingbox.fill").frame(width: 22).foregroundStyle(Color.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(b.name).font(.headline).lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text(programCount(b))
+                                if b.running { Text("Running").foregroundStyle(.green) }
+                            }.font(.caption).foregroundStyle(.secondary)
+                        }
+                    }.padding(.vertical, 3).tag(b.name)
+                }
+                .overlay {
+                    if model.boxes.isEmpty {
+                        Text("No boxes yet. A box is a folder that acts as a separate Windows PC: what runs in it can't see the rest of your Mac.")
+                            .multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 20)
+                    }
+                }
+                if model.canMigrate {
+                    Button { confirmMigrate = true } label: {
+                        Label("Move my existing setup into a box", systemImage: "arrow.right.square")
+                    }.buttonStyle(.link).padding(.horizontal, 14).padding(.vertical, 6)
+                }
+                Divider()
+                HStack {
+                    Button { Task { await model.boxAct("Creating a box…", ["new"]) } } label: {
+                        Label("New Box", systemImage: "plus")
+                    }
+                    Button { reveal(boxesPath) } label: { Label("Show in Finder", systemImage: "folder") }
+                    Spacer()
+                }.padding(10)
+            }
+            .frame(minWidth: 260, idealWidth: 300, maxWidth: 380)
+
+            Group {
+                if let b = model.boxes.first(where: { $0.name == selected }) {
+                    BoxDetail(box: b, onDelete: { confirmDelete = b })
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "shippingbox").font(.system(size: 44)).foregroundStyle(.secondary)
+                        Text("Select a box, or make a new one.").font(.title3).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+                }
+            }
+            .frame(minWidth: 500, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear {
+            Task { await model.refreshBoxes() }
+            if selected == nil { selected = model.boxes.first?.name }
+        }
+        .onChange(of: model.boxes) { _, boxes in
+            if selected == nil || !boxes.contains(where: { $0.name == selected }) { selected = boxes.first?.name }
+        }
+        .confirmationDialog("Move “\(confirmDelete?.name ?? "")” to the Trash?", isPresented: Binding(
+            get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
+            Button("Move to Trash", role: .destructive) {
+                if let b = confirmDelete { Task { await model.boxAct("Deleting \(b.name)…", ["delete", b.name]) } }
+            }
+        } message: {
+            Text("Everything in it — programs, saves and its Windows settings — goes to the Trash. Programs running in it are stopped.")
+        }
+        .confirmationDialog("Move your existing setup into a box called “Main”?", isPresented: $confirmMigrate) {
+            Button("Move into “Main”") { Task { await model.boxAct("Moving your setup…", ["migrate"]) } }
+        } message: {
+            Text("Your Windows drive C: (including Steam and installed games) and the MacX folder are moved — not copied — into MacX Boxes/Main. The Steam page keeps working. The box no longer has a Z: drive, so Windows programs in it can't see the rest of your Mac. Quit Steam first.")
+        }
+    }
+
+    func programCount(_ b: WinBox) -> String {
+        let n = b.items.filter { $0.mainExe != nil }.count
+        return n == 1 ? "1 program" : "\(n) programs"
+    }
+}
+
+struct BoxDetail: View {
+    @EnvironmentObject var model: AppModel
+    let box: WinBox
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(box.name).font(.title2.weight(.semibold))
+                    Text(box.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+                Spacer()
+                if box.running {
+                    Button { Task { await model.boxAct("Stopping…", ["stop", box.name]) } } label: {
+                        Label("Stop All", systemImage: "stop.fill")
+                    }
+                }
+                Button { reveal(box.path) } label: { Label("Show in Finder", systemImage: "folder") }
+                Button(role: .destructive, action: onDelete) { Label("Delete Box", systemImage: "trash") }
+            }.padding(16)
+            Divider()
+            let progs = box.items.filter { $0.mainExe != nil }
+            if progs.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "tray.and.arrow.down").font(.system(size: 36)).foregroundStyle(.secondary)
+                    Text("Drop Windows programs or game folders into this box's folder in Finder. They appear here and run as drive W:.")
+                        .multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 30)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(progs) { it in
+                    HStack(spacing: 10) {
+                        Image(systemName: "app.dashed").frame(width: 22).foregroundStyle(Color.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(it.name).font(.headline).lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text(it.mainExe ?? "")
+                                if let api = it.api, api != "Unknown" { Text(api) }
+                            }.font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: { it.engine ?? "auto" },
+                            set: { v in Task { await model.boxAct("Saving…", ["set-engine", box.name, it.id, v]) } })) {
+                            Text("Auto (\(engineShort(it.effectiveEngine ?? "")))").tag("auto")
+                            Text("D3DMetal").tag("d3dmetal")
+                            Text("Wine 11").tag("wine11")
+                        }.frame(width: 170).labelsHidden()
+                        Button { Task { await model.boxAct("Starting \(it.name)…", ["launch", box.name, it.id]) } } label: {
+                            Label("Run", systemImage: "play.fill")
+                        }
+                    }.padding(.vertical, 4)
+                }
+            }
+        }
+    }
 }
 
 struct ItemRow: View {

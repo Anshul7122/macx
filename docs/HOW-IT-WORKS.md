@@ -81,6 +81,30 @@ Credit: [aprilmaccydee/gta5enhanced-mac](https://github.com/aprilmaccydee/gta5en
 two causes on CrossOver. MacX implements the fixes as a built-in, version-independent wrapper rather
 than a runtime memory patch.
 
+## 7. Boxes: one folder, one Windows PC
+
+A box is `~/MacX Boxes/<Name>/` with the Wine prefix hidden in `.macx/prefix`, so the folder owns everything:
+
+- **Template + clone.** `box-template` is a prefix built once with `wineboot` and given the D3DMetal bridge
+  files (`ntdlx`, `nvapi64`, `nvngx`, `d3dmt`, DXVK). New boxes are `cp -c` APFS clones: instant, and they
+  share disk blocks until written. Each clone gets a fresh `MachineGuid`. The template is rebuilt when the
+  engines change (a stamp of `ntdll.so` and `ntdlx.dll` hashes).
+- **Containment.** `dosdevices` keeps only `c:` and `w:` (the box folder); `z:` is removed. The user shell
+  folders (`Desktop`, `Documents`, ...) that Wine links to the Mac's own folders become real folders inside
+  the box. Re-checked on every launch.
+- **Sandbox.** Programs start under `sandbox-exec` with a generated profile: deny writes and file-data reads
+  under the home folder, then allow the box folder and the MacX engines. One catch: the allows must name the
+  same operations as the deny (`file-read-data`, not `file-read*`). A wildcard allow does not override a
+  specific deny, and Wine's `bin/../lib/...` loader paths then fail with *sandbox blocked open()*.
+- **One Wine server per box.** Wine keys its server on the prefix folder's device and inode
+  (`/tmp/.wine-UID/server-<dev>-<ino>`), so separate prefixes never share a server and one box can't kill
+  another's processes. Processes are attributed to a box with `lsof` (open files under its prefix).
+- **Deleted in Finder.** The app watches `~/MacX Boxes` with FSEvents. On every list, Wine processes whose
+  prefix is no longer a live box are killed, and stale server dirs are removed. A server dir is mapped back
+  to its prefix through `/.vol/<dev>/<ino>` + `F_GETPATH`, which still resolves for a folder in the Trash.
+- **Migration.** `box migrate` renames the old shared prefix and Desktop folder into `Main` (same disk, so no
+  copy) and leaves symlinks at the old paths for the Steam code.
+
 ## Debugging toolkit
 
 Most of the root causes above were found with: Wine's `+seh`/`+relay`/`+loaddll`/`+file` channels (with

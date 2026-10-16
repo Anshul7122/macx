@@ -1424,6 +1424,14 @@ def main():
     if not a:
         fail("no command")
     c = a[0]
+    if c == "box":
+        import macxbox
+        try:
+            return out(macxbox.main(a[1:]))
+        except SystemExit:
+            raise
+        except Exception as e:  # noqa: BLE001 - reported to the app
+            fail("%s: %s" % (type(e).__name__, e))
     if c in ("preflight", "install", "install-steam", "install-status"):
         import macxinstall
         sys.argv = [sys.argv[0], "status" if c == "install-status" else c]
