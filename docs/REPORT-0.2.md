@@ -127,6 +127,19 @@ file. I packed them in every form MacX should accept:
 - **Leftovers check (from the first part of the boxes work):** a box deleted in Finder while a game was
   running left nothing behind. Its programs were stopped and its temporary files removed.
 
+## Performance
+
+What decides how fast a game runs, and what MacX now does about it:
+
+| Thing | What I found | What changed |
+| --- | --- | --- |
+| **Heat** | The biggest factor. Apple chips slow down when hot (your 45 → 60 fps after better cooling). | Advice in the user guide: cooling, plugged in, frame cap, upscaling. |
+| **macOS Game Mode** (game gets priority, background work waits) | Turns on only for full-screen games from a "game" app. Wine has no identity of its own, so macOS credits the app that started it. MacX is marked as a game app, so **games started from MacX should get Game Mode**. The games I started from Terminal today didn't. | macOS's logs from 16 October show "Full screen gaming session is now active" and "Game mode status is now on" while a Windows game ran full screen through Wine; today's Terminal-started runs show it off. I couldn't repeat the test from the app because the screen was locked. To check: play full screen from MacX, and the Game Mode icon appears in the menu bar. |
+| **MacX's own background work** while you play | Every 4 s the app checked which box each Windows program belongs to by listing all their open files: 0.47 s each time with only Steam running, and far more with a game (thousands of open files). | It now asks only for each program's working folder: **0.075 s**, about 6 times less with Steam alone, and the gap grows with a game running. |
+| **The box sandbox** | It checks file access; games do little of that while playing. GTA V reached the same state inside and outside a box, and played at ~60 fps in a box. | Nothing needed. |
+| **Upscaling** | GTA V offers FSR (and DLSS, which D3DMetal turns into Apple's MetalFX). | Turned on in MacX already (MetalFX); recommended in the guide. |
+| **Frame-rate overlay** | Costs very little. | Can be switched off on the This PC page. |
+
 ## Problems I hit and fixed (the interesting part)
 
 1. **The sandbox blocked Wine itself.** macOS's sandbox rules need the "allow" to name exactly the same kind
@@ -147,8 +160,8 @@ file. I packed them in every form MacX should accept:
    "Force Quit" also no longer touches boxes.
 8. **The app froze at launch.** The old *MacX Drive* folder lives on your Desktop, which macOS protects. Each
    newly built MacX has to be allowed to look at it again, and while macOS waited for that answer, the app's
-   window waited too. MacX now loads boxes first and watches folders in the background, so the window never
-   freezes.
+   window waited too. MacX now loads boxes first, watches folders in the background, and gives its helper
+   requests a time limit, so the window never freezes.
 9. **Real installers aren't always called "setup".** Rockstar's was taken for a game. MacX now also recognises
    installers by the tool they were made with, and you can correct it with the ⋯ menu.
 

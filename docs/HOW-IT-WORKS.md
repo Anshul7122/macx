@@ -167,6 +167,26 @@ opening it (FSEvents' watch-root opens every parent directory) blocks while macO
 access, and an ad-hoc-signed app is asked again after every rebuild. The app therefore loads boxes first and
 starts its folder watches off the main thread, so a pending prompt can't freeze the window.
 
+### Performance
+
+- **Game Mode.** macOS turns Game Mode on for a full-screen game whose app is in the games category. Wine
+  processes have no app identity of their own (RunningBoard lists them as `anon<wine>`), so macOS attributes
+  them to the app that launched them. MacX's Info.plist declares `public.app-category.games`, so games started
+  from MacX should get Game Mode when full screen. `gamepolicyd` logged "Full screen gaming session is now
+  active" / "Game mode status is now on" while a Wine game ran full screen on 16 October; runs started from
+  Terminal stayed "off". A separate game-category wrapper bundle around
+  the `wine` binary was tried and isn't needed (an exec'd process stays anonymous anyway).
+- **MacX's own cost while a game runs.** The app refreshes status every 4 s. Attributing Wine processes to boxes
+  used to list every open file of every Wine process (`lsof`), and a game keeps thousands open. It now asks
+  `lsof` only for each process's working folder (`-d cwd`), which is inside its prefix's C: drive or its box
+  folder, or is a wineserver's server dir (resolved through `/.vol`); only processes that doesn't explain get
+  the full scan. With Steam running: 0.47 s → 0.075 s per check. (Reading `WINEPREFIX` from the process
+  environment would be cheaper still, but Wine doesn't pass it on to the processes it starts.)
+- **Sandbox cost.** `sandbox-exec` checks file opens; a running game does few. The same GTA V start-up state
+  (memory, archives open, threads) was reached inside and outside a box, and GTA V played at ~60 fps in a box.
+- **Read-only helper calls have a 45 s limit**, so a file system that blocks (macOS waiting for Desktop-folder
+  permission) can't leave the app waiting forever.
+
 **Copy of the shared setup.** `box clone-main` is `cp -cR` of the shared prefix into a new box (1.7 s for a
 100 GB Steam + GTA V install, no extra disk), keeping its MachineGuid (it is the same PC) and then applying
 the containment above. GTA V Enhanced was started from Steam inside such a box, under the sandbox: Steam →

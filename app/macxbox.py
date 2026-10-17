@@ -395,35 +395,14 @@ def add_files(name, paths):
 
 
 # ------------------------------------------------------------------------------------------------- processes
-def pid_files(pids):
-    """{pid: [open file paths]} for many processes with a single lsof call."""
-    res = {}
-    if not pids:
-        return res
-    r = subprocess.run(["lsof", "-Fpn", "-p", ",".join(str(p) for p in pids)], stdout=subprocess.PIPE,
-                       stderr=subprocess.DEVNULL, text=True, errors="replace")
-    cur = None
-    for line in r.stdout.splitlines():
-        if line.startswith("p"):
-            cur = int(line[1:])
-            res[cur] = []
-        elif line.startswith("n") and cur is not None:
-            res[cur].append(line[1:])
-    return res
-
-
 def processes_by_prefix(procs=None):
-    """{real prefix path: [wine process dicts]} for every Wine process (matched by open files under a prefix)."""
+    """{real prefix path: [wine process dicts]} for every Wine process."""
     procs = procs if procs is not None else M.wine_processes()
-    files = pid_files([p["pid"] for p in procs])
+    owner = M.process_prefixes(procs)
     res = {}
     for p in procs:
-        for f in files.get(p["pid"], []):
-            m = re.match(r"(.*/%s/prefix)/" % re.escape(META), f) or (
-                re.match(r"(%s)/" % re.escape(os.path.realpath(M.PREFIX)), f))
-            if m:
-                res.setdefault(m.group(1), []).append(p)
-                break
+        if p["pid"] in owner:
+            res.setdefault(owner[p["pid"]], []).append(p)
     return res
 
 
@@ -469,23 +448,7 @@ def orphan_cleanup():
     return killed
 
 
-def server_dir_prefix(d):
-    """Wine keys its server dir (/tmp/.wine-UID/server-<dev>-<inode>) on the prefix folder. Resolve it back to
-    a path through /.vol, or None when that folder no longer exists."""
-    m = re.match(r"server-([0-9a-f]+)-([0-9a-f]+)$", d)
-    if not m:
-        return ""
-    try:
-        fd = os.open("/.vol/%d/%d" % (int(m.group(1), 16), int(m.group(2), 16)), os.O_RDONLY)
-    except OSError:
-        return None
-    try:
-        import fcntl
-        return fcntl.fcntl(fd, 50, b"\0" * 1024).split(b"\0", 1)[0].decode(errors="replace")   # F_GETPATH
-    except OSError:
-        return ""
-    finally:
-        os.close(fd)
+server_dir_prefix = M.server_dir_prefix
 
 
 def stale_server_dirs(live):

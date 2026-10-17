@@ -27,7 +27,11 @@ finish with a plain-language report (docs/REPORT-0.2.md).
 - [x] Close everything (no Wine, no MacX running); delete the auto-resume cron job
 - [x] GTA V Enhanced played in a box by the user (~60 fps open gameplay)
 - [x] Real installers: Social Club (NSIS) installed quietly; installer detection by tool + Treat as Installer/Program + Install Options; launcher fixes in boxes; app no longer freezes on the Desktop permission
+- [x] Performance pass: Game Mode (MacX is a game-category app; Wine games are credited to it), process
+      attribution via working folder (0.47 s -> 0.075 s per check), 45 s limit on read-only helper calls,
+      fullscreen option in the DX12 test, "best frame rate" guide section
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
+- [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 
 ## Rules
 - Close apps/games after testing (`python3 app/macxctl.py box stop "<box>"`, quit MacX) — the Mac heats up.

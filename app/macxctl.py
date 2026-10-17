@@ -312,20 +312,87 @@ def wine_processes():
     return procs
 
 
-def box_pids(procs):
-    """pids (of these Wine processes) that run inside a MacX box rather than the shared setup: one lsof call."""
-    pids = [p["pid"] for p in procs]
+BOXES_DIR = os.environ.get("MACX_BOXES") or os.path.join(HOME, "MacX Boxes")
+
+
+def server_dir_prefix(d):
+    """Wine keys its server dir (/tmp/.wine-UID/server-<dev>-<inode>) on the prefix folder. Resolve it back to
+    a path through /.vol, "" if it isn't one, or None when that folder no longer exists."""
+    m = re.match(r"server-([0-9a-f]+)-([0-9a-f]+)$", d)
+    if not m:
+        return ""
+    try:
+        fd = os.open("/.vol/%d/%d" % (int(m.group(1), 16), int(m.group(2), 16)), os.O_RDONLY)
+    except OSError:
+        return None
+    try:
+        import fcntl
+        return fcntl.fcntl(fd, 50, b"\0" * 1024).split(b"\0", 1)[0].decode(errors="replace")   # F_GETPATH
+    except OSError:
+        return ""
+    finally:
+        os.close(fd)
+
+
+def lsof_paths(pids, cwd_only=False):
+    """{pid: [paths]} for many processes in one lsof call. cwd_only asks only for each process's working folder,
+    which is ~15x cheaper than listing every open file (a game keeps thousands open)."""
+    res = {}
     if not pids:
-        return set()
-    r = subprocess.run(["lsof", "-Fpn", "-p", ",".join(map(str, pids))], stdout=subprocess.PIPE,
-                       stderr=subprocess.DEVNULL, text=True, errors="replace")
-    res, cur = set(), None
+        return res
+    cmd = ["lsof", "-Fpn"] + (["-a", "-d", "cwd"] if cwd_only else []) + ["-p", ",".join(map(str, pids))]
+    r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, errors="replace")
+    cur = None
     for line in r.stdout.splitlines():
         if line.startswith("p"):
             cur = int(line[1:])
-        elif line.startswith("n") and "/.macx/prefix/" in line and not os.path.realpath(PREFIX).endswith("/.macx/prefix"):
-            res.add(cur)
+            res.setdefault(cur, [])
+        elif line.startswith("n") and cur is not None:
+            res[cur].append(line[1:])
     return res
+
+
+def process_prefixes(procs):
+    """{pid: real path of the Wine prefix it runs in} for Wine processes. Windows programs work inside their
+    prefix's C: drive or their box folder (W:), and a wineserver sits in its server dir, so the working folder
+    nearly always tells; only processes it doesn't (e.g. one started from a disc) get the full open-files scan."""
+    boxes = os.path.realpath(BOXES_DIR) + os.sep
+    shared = os.path.realpath(PREFIX)
+    drop = os.path.realpath(DROP)
+    res, unknown = {}, []
+
+    def classify(path):
+        m = re.match(r"(.*/%s/prefix)(/|$)" % re.escape(".macx"), path)
+        if m:
+            return m.group(1)
+        if path.startswith(boxes):
+            return os.path.join(boxes, path[len(boxes):].split(os.sep)[0], ".macx", "prefix")
+        if path == shared or path.startswith(shared + os.sep) or path == drop or path.startswith(drop + os.sep):
+            return shared
+        d = os.path.basename(path)
+        if d.startswith("server-"):
+            p = server_dir_prefix(d)
+            return os.path.realpath(p) if p else None
+        return None
+
+    for pid, paths in lsof_paths([p["pid"] for p in procs], cwd_only=True).items():
+        pfx = next((c for c in map(classify, paths) if c), None)
+        if pfx:
+            res[pid] = pfx
+        else:
+            unknown.append(pid)
+    for pid, paths in lsof_paths(unknown).items():
+        pfx = next((c for c in map(classify, paths) if c and "/drive_c" in "".join(paths)), None) or next(
+            (c for c in map(classify, paths) if c), None)
+        if pfx:
+            res[pid] = pfx
+    return res
+
+
+def box_pids(procs):
+    """pids (of these Wine processes) that run inside a MacX box rather than the shared setup."""
+    shared = os.path.realpath(PREFIX)
+    return {pid for pid, pfx in process_prefixes(procs).items() if pfx != shared}
 
 
 def shared_processes():

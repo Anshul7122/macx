@@ -91,6 +91,22 @@ in brackets shows what Auto chose.
 
 If a game shows a black screen or closes right away, try the other choices one by one.
 
+### Getting the best frame rate
+
+- **Start games from MacX** (its Play button or Steam page). MacX tells macOS it's a game app, so when the game
+  goes full screen macOS should switch on **Game Mode** (a game-controller icon appears in the menu bar): the
+  game gets priority on the processor and graphics chip, and background work waits. (Games started some other way, e.g. from Terminal, don't get Game Mode.)
+- **Play full screen**, not in a window. Game Mode only turns on for full-screen games.
+- **Keep the Mac cool and plugged in.** Apple chips slow themselves down when they get hot; that's the biggest
+  difference between 45 and 60 fps in GTA V. A cool surface or a stand with a fan helps. Turn off Low Power Mode.
+- **Use the game's upscaling.** In the game's graphics settings choose **FSR** (or **DLSS** if offered, which
+  MacX turns into Apple's MetalFX). The game draws fewer pixels and scales them up: more fps, less heat.
+- **Cap the frame rate** in the game (for example at 60). Frames above what you need just make heat.
+- **Turn ray tracing off** and leave shadows/reflections at medium; they cost the most on Apple chips.
+- The small **frame-rate overlay** (top-right corner of games) can be switched off on the **This PC** page; it
+  costs very little, but nothing is free.
+- Boxes don't slow games down: the sandbox only checks file access, which games do little of while playing.
+
 ## 6. Your Steam games (GTA V and others)
 
 The **Steam** page keeps working as before. On the Boxes page there are also two links:

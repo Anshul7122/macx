@@ -172,8 +172,13 @@ enum Backend {
         Bundle.main.path(forResource: "macxctl", ofType: "py") ?? "macxctl.py"
     }
 
+    /// Commands that only read state: they get a time limit, so one blocked by the file system (for example
+    /// macOS waiting for permission to read the Desktop folder) can never keep the app waiting forever.
+    static let readOnly: Set<String> = ["status", "items", "programs", "games", "paths", "storage"]
+
     static func raw(_ args: [String]) async -> Data {
-        await withCheckedContinuation { cont in
+        let limit: Double? = readOnly.contains(args.first ?? "") || args.prefix(2) == ["box", "list"] ? 45 : nil
+        return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
@@ -184,6 +189,9 @@ enum Backend {
                 do { try p.run() } catch {
                     cont.resume(returning: Data("{\"ok\":false,\"error\":\"Couldn't start helper: \(error.localizedDescription)\"}".utf8))
                     return
+                }
+                if let limit {
+                    DispatchQueue.global().asyncAfter(deadline: .now() + limit) { if p.isRunning { p.terminate() } }
                 }
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 p.waitUntilExit()

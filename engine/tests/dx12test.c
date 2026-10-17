@@ -10,7 +10,10 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE p, PWSTR a, int s){
   char lp[MAX_PATH]; GetModuleFileNameA(0,lp,MAX_PATH); strcpy(strrchr(lp,'\\')+1,"result.txt");
   FILE *log=fopen(lp,"w"); HRESULT hr;
   WNDCLASSW wc={0}; wc.lpfnWndProc=wp; wc.hInstance=hi; wc.lpszClassName=L"d3d12t"; RegisterClassW(&wc);
-  HWND hw=CreateWindowW(L"d3d12t",L"MacX - DirectX 12 test",WS_OVERLAPPEDWINDOW|WS_VISIBLE,120,120,640,360,0,0,hi,0);
+  /* "fullscreen" on the command line: a borderless window covering the screen, like most games */
+  int fs = a && wcsstr(a, L"fullscreen") != 0;
+  int W = fs ? GetSystemMetrics(SM_CXSCREEN) : 640, H = fs ? GetSystemMetrics(SM_CYSCREEN) : 360;
+  HWND hw=CreateWindowW(L"d3d12t",L"MacX - DirectX 12 test",(fs?WS_POPUP:WS_OVERLAPPEDWINDOW)|WS_VISIBLE,fs?0:120,fs?0:120,W,H,0,0,hi,0);
   IDXGIFactory4 *f=0; CHK(CreateDXGIFactory1(&IID_IDXGIFactory4,(void**)&f));
   IDXGIAdapter1 *ad=0; DXGI_ADAPTER_DESC1 desc;
   if(SUCCEEDED(IDXGIFactory4_EnumAdapters1(f,0,&ad)) && SUCCEEDED(IDXGIAdapter1_GetDesc1(ad,&desc)))
@@ -18,7 +21,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE p, PWSTR a, int s){
   ID3D12Device *dev=0; CHK(D3D12CreateDevice((IUnknown*)ad,D3D_FEATURE_LEVEL_11_0,&IID_ID3D12Device,(void**)&dev));
   D3D12_COMMAND_QUEUE_DESC qd={0}; qd.Type=D3D12_COMMAND_LIST_TYPE_DIRECT;
   ID3D12CommandQueue *q=0; CHK(ID3D12Device_CreateCommandQueue(dev,&qd,&IID_ID3D12CommandQueue,(void**)&q));
-  DXGI_SWAP_CHAIN_DESC1 sd={0}; sd.Width=640; sd.Height=360; sd.Format=DXGI_FORMAT_R8G8B8A8_UNORM; sd.SampleDesc.Count=1;
+  DXGI_SWAP_CHAIN_DESC1 sd={0}; sd.Width=W; sd.Height=H; sd.Format=DXGI_FORMAT_R8G8B8A8_UNORM; sd.SampleDesc.Count=1;
   sd.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT; sd.BufferCount=2; sd.SwapEffect=DXGI_SWAP_EFFECT_FLIP_DISCARD;
   IDXGISwapChain1 *sc1=0; CHK(IDXGIFactory4_CreateSwapChainForHwnd(f,(IUnknown*)q,hw,&sd,0,0,&sc1));
   IDXGISwapChain3 *sc=0; CHK(IDXGISwapChain1_QueryInterface(sc1,&IID_IDXGISwapChain3,(void**)&sc));
