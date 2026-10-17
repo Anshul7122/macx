@@ -214,8 +214,9 @@ What decides how fast a game runs, and what MacX now does about it:
 | The code | `app/macxbox.py` (boxes), `app/main.swift` (the app), `engine/tests/` (test programs), `scripts/make-test-fixtures.sh` |
 | Saved versions (git) | branch `feature/boxes`, on top of 0.1.1, **not pushed to GitHub yet** |
 
-To remove the test boxes: drag *Test Lab* (about 0.7 GB), *Real Installers*, *Repack Lab* (about 0.3 GB),
-*Repack Test* or *GTA Box* to the Trash. *GTA Box* shares its
+To remove the test boxes: drag *Test Lab*, *Real Installers*, *Repack Lab*, *Repack Test* or *GTA Box* to the
+Trash. Finder shows about 0.5–0.7 GB for each test box, but much of that is the Windows system they share with
+each other (copy-on-write), so deleting one frees less. *GTA Box* shares its
 files with your original setup, so deleting it frees only what changed inside it.
 
 ## Next milestone (your plan): a shippable, downloadable MacX
