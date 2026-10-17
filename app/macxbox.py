@@ -662,6 +662,11 @@ def file_items(name, data, st, running):
             setups = [e for e in exes if e.lower().endswith(".msi") or M.INSTALLER_RE.search(os.path.basename(e))]
             if playable and len(playable) <= 3 and all(looks_like_installer(os.path.join(path, e), data) for e in playable):
                 setups, playable = playable + setups, []   # e.g. "Game Installer.exe" + its data files
+            top_setups = [e for e in setups if os.sep not in e]
+            if playable and top_setups and (glob.glob(os.path.join(glob.escape(path), "*.bin")) or
+                                            not any(os.sep not in e for e in playable)):
+                # repack / GOG layout: setup.exe + data-1.bin… at the top, helpers such as MD5\QuickSFV.exe below
+                setups, playable = top_setups + [e for e in setups if e not in top_setups], []
             if cfg.get("kind") == "installer" and (playable or setups):
                 setups, playable = setups or playable, []
             if playable:
