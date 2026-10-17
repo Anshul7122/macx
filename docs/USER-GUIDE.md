@@ -124,6 +124,13 @@ Quit Steam before using either.
   what Wine printed while running the installer or game. Useful when asking for help.
 - **"Setup ended with error code …"**: the installer reported a problem. Press **Install Again**. Some
   "repack" installers need a lot of memory; close other apps first.
+- **An installer crashes straight away**: some older installers don't run under Wine. If it's an Inno Setup
+  installer (most repacks and GOG installers are) and the free tool *innoextract* is installed
+  (`brew install innoextract`), MacX unpacks it instead, automatically; the game then appears as a folder ready
+  to play. (Shortcuts and extras the installer would have made are skipped.)
+- **A game's own launcher window stays empty or invisible**: some launchers don't draw under Wine. Open the
+  game's **⋯** menu → **Program & Launch Options…**, pick the game's actual program (often in a `bin` folder)
+  and, if the game needs them, its options.
 - **Microsoft Visual C++ installers** (`VC_redist…exe`, often bundled with games) fail under Wine. That's
   harmless: Wine already contains those files, so the game itself still runs.
 - **macOS asks whether MacX may access your Desktop folder**: click **Allow**. The older *MacX Drive* folder

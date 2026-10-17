@@ -26,7 +26,9 @@ inside a sandboxed box. Six stand-in games covering every supported form (instal
 image, zip, 7z, split archive, single exe; DirectX 9/11/12, 32- and 64-bit) install and run at the display's
 120 Hz cap. Build them with `scripts/make-test-fixtures.sh`. A real Inno Setup repack (setup.exe + .bin parts,
 LZMA2) of a DirectX 12 game, built with the official Inno Setup, installs in a fresh box and plays on D3DMetal
-(`scripts/make-inno-repack.sh`).
+(`scripts/make-inno-repack.sh`). A real game, Unigine Heaven 4.0 (32-bit DirectX 11), was unpacked (its old
+installer crashes in Wine 11; MacX falls back to innoextract), repacked the same way, installed in a fresh box
+and played on DXMT.
 
 > MacX is an independent open-source project by Anshul Chaudhary. It is not affiliated with Microsoft, Apple,
 > Valve or Rockstar Games.

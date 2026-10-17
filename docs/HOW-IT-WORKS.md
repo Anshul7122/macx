@@ -164,6 +164,19 @@ at 112.9 fps (`scripts/make-inno-repack.sh` repeats all of it). It exposed one b
 counts a terminating NUL in the .lnk StringData fields, so arguments came back as `"\0"`; strings are now cut at
 the first NUL.
 
+**A real game: Unigine Heaven 4.0** (official installer, 247 MB). Its Inno Setup 5 installer (2013, 32-bit)
+crashes in Wine 11 on both engines, sandboxed or not: an access violation in Wine's 32-bit code with
+`esp=ffffffff`, then "Exception frame is not in stack limits" (GPTK's Wine 7.7 has no 32-bit support at all).
+So for Inno installers that fail, the setup worker falls back to `innoextract` (if installed) and unpacks
+`{app}` into the box. Heaven is 32-bit DirectX 11 with the API only in its engine DLL, so detection now also
+scans the DLLs next to an `.exe` that names no API (Unity, Unreal, Unigine games). On DXMT: 8.8 fps at its
+defaults, 24.7 fps at QUALITY_MEDIUM 1280×720; wined3d's D3D11 and Heaven's OpenGL renderer draw nothing.
+Repacked with Inno Setup 6 (setup.exe + 4 × ≤80 MB parts, shortcut with Parameters/WorkingDir), it installs in a
+fresh box in 6 s with all files identical and plays on DXMT (13–25 fps, first run). Its Qt WebKit launcher is
+a layered window that stays transparent under Wine, hence per-game Program & Launch Options; folders whose only
+top-level launcher is a `.bat` naming one of their programs start through that `.bat` (`cmd /c`), and DXMT's
+DLLs are placed next to every program folder of the game, not only the started one.
+
 Real installers tried: Rockstar's Social Club setup (NSIS, 122 MB) installs quietly in about 15 s; the Rockstar
 Games Launcher's own installer ignores `/S` and waits for clicks, as on Windows; Microsoft's VC++ 2015-2022
 redistributable (WiX Burn) fails under Wine 11 itself (`Failed to extract all files from container, erf

@@ -179,6 +179,31 @@ CHOICES = ("auto", "d3dmetal", "dxmt", "wine")
 DXMT_DLLS = ("d3d11.dll", "dxgi.dll", "d3d10core.dll")
 
 
+def game_info(exe, data):
+    """pe_info for a game's .exe; when the .exe itself names no graphics API (engine games such as Unity, Unreal
+    or Unigine load it from their engine DLL), the DLLs next to it are checked too."""
+    info = M.pe_info(exe, data)
+    if info.get("apis"):
+        return info
+    apis = set()
+    folder = os.path.dirname(exe)
+    try:
+        dlls = [f for f in os.listdir(folder) if f.lower().endswith(".dll")]
+    except OSError:
+        dlls = []
+    for f in sorted(dlls)[:40]:
+        path = os.path.join(folder, f)
+        if f.lower().startswith(("d3d", "dxgi", "opengl", "vulkan", "msvc", "vcruntime", "api-ms")):
+            continue   # the graphics libraries themselves and runtimes say nothing about the game
+        try:
+            if os.path.getsize(path) > 96 << 20:
+                continue
+        except OSError:
+            continue
+        apis |= set(M.pe_info(path, data).get("apis", []))
+    return dict(info, apis=[n for _, n in M.API_PATTERNS if n in apis])
+
+
 def auto_choice(info):
     apis, bits = set(info.get("apis", [])), info.get("bits")
     if bits != 32 and apis & {"dx10", "dx11", "dx12"} and M.engine_ok("d3dmetal"):
@@ -581,16 +606,28 @@ def launcher_fixes(name):
                    stderr=subprocess.DEVNULL, timeout=120)
 
 
-def spawn(name, choice, cmd, cwd, log_name, bits=None):
+def exe_dirs(folder, limit=12):
+    """Folders inside a game that hold programs (a launcher in one, the game itself in another)."""
+    dirs = []
+    for e in M.list_exes(folder)[:200]:
+        d = os.path.dirname(os.path.join(folder, e))
+        if d not in dirs:
+            dirs.append(d)
+    return dirs[:limit]
+
+
+def spawn(name, choice, cmd, cwd, log_name, bits=None, game_dir=None):
     """Runs a Windows command in the box: sandboxed, on the engine for this graphics choice. Returns the Popen."""
     eng, extra = engine_env(choice)
     contain_prefix(prefix(name), box_path(name), keep=disc_letters(name))
     copy_dxvk(os.path.join(prefix(name), "drive_c", "windows"))
     launcher_fixes(name)
-    if choice == "dxmt":
-        place_dxmt(cwd, bits)
-    elif os.path.isdir(cwd):
-        remove_dxmt(cwd)
+    dirs = [cwd] + (exe_dirs(game_dir) if game_dir and os.path.isdir(game_dir) and game_dir != box_path(name) else [])
+    for d in dict.fromkeys(dirs):
+        if choice == "dxmt":
+            place_dxmt(d, bits)
+        elif os.path.isdir(d):
+            remove_dxmt(d)
     os.makedirs(meta(name, "logs"), exist_ok=True)
     env = M.wine_env(dict({"WINEPREFIX": prefix(name), "WINEDEBUG": "fixme-all"},
                           **({"MTL_HUD_ENABLED": "1"} if M.load_config().get("hud") else {}), **extra), eng)
@@ -654,6 +691,7 @@ def file_items(name, data, st, running):
         path = os.path.join(folder, entry)
         cfg, state = data["items"].get(entry, {}), st["items"].get(entry, {})
         stem, ext = os.path.splitext(entry)
+        launch_bat = None
         exes, main, base = [], None, folder
         if os.path.isdir(path):
             base = path
@@ -672,6 +710,15 @@ def file_items(name, data, st, running):
             if playable:
                 kind = "folder"
                 main = cfg.get("exe") if cfg.get("exe") in exes else M.guess_main_exe(path, playable)
+                bats = [b for b in os.listdir(path) if b.lower().endswith((".bat", ".cmd"))]
+                if not cfg.get("exe") and len(bats) == 1 and not any(os.sep not in e for e in playable):
+                    try:
+                        with open(os.path.join(path, bats[0]), encoding="latin-1") as f:
+                            text = f.read(4096).lower()
+                    except OSError:
+                        text = ""
+                    if any(os.path.basename(e).lower() in text for e in playable):
+                        launch_bat = bats[0]   # e.g. heaven.bat: cd bin, start browser_x86.exe -config ...
             elif setups:
                 kind = "installer"
                 main = cfg.get("exe") if cfg.get("exe") in exes else pick_setup(setups)
@@ -692,7 +739,7 @@ def file_items(name, data, st, running):
                 exes, main = [entry], entry
         info = {"apis": []}
         if main and main.lower().endswith(".exe") and kind in ("program", "folder"):
-            info = M.pe_info(os.path.join(base, main), data)
+            info = game_info(os.path.join(base, main), data)
         win = ("W:\\" + os.path.relpath(os.path.join(base, main), folder).replace(os.sep, "\\")) if main else None
         procs = [p for p in running if win and p["path"].lower() == win.lower()]
         disk = st["disks"].get(entry)
@@ -701,7 +748,8 @@ def file_items(name, data, st, running):
             status = ("Unpacked into “%s”" % state["into"]) if s == "unpacked" and os.path.exists(
                 os.path.join(folder, state.get("into", ""))) else (state.get("message") if s == "failed" else "Not unpacked yet")
         elif kind in ("installer", "disk"):
-            status = {"installed": "Installed", "failed": state.get("message", "Setup failed")}.get(s, "Not installed yet")
+            status = {"installed": "Installed", "failed": state.get("message", "Setup failed"),
+                      "unpacked": state.get("message", "Unpacked")}.get(s, "Not installed yet")
             if disk:
                 status += " · in drive %s:" % disk["letter"].upper()
         else:
@@ -716,6 +764,7 @@ def file_items(name, data, st, running):
             "state": s or "", "status": status, "pending": kind in ("archive", "installer", "disk") and s not in (
                 "unpacked", "installed"),
             "playable": kind in ("program", "folder") and bool(main),
+            "launch": launch_bat,
             "log": meta(name, "logs", safe_name(entry) + ".log"),
         })
     return items
@@ -873,7 +922,7 @@ def installed_apps(name, data, running):
     apps = []
     for a in found.values():
         cfg = data["items"].get(a["win"], {})
-        info = M.pe_info(a["exe"], data)
+        info = game_info(a["exe"], data)
         procs = [p for p in running if p["path"].lower() == a["win"].lower()]
         is_steam = os.path.basename(a["exe"]).lower() == "steam.exe"
         apps.append({"id": a["win"], "name": a["name"], "kind": "steam" if is_steam else "app", "path": a["exe"],
@@ -935,6 +984,9 @@ def play(name, item_id, extra_args=None):
     elif it["kind"] == "steam":
         M.apply_cef_wrappers(os.path.join(prefix(name), "drive_c"))
         cmd, cwd = [it["winPath"]] + STEAM_ARGS + args, os.path.dirname(it["path"])
+    elif it["kind"] == "folder" and it.get("launch"):
+        bat = os.path.join(it["path"], it["launch"])
+        cmd, cwd = ["cmd", "/c", unix_to_win(name, bat)] + args, it["path"]
     elif it["kind"] in ("program", "folder", "app"):
         exe = it["path"] if it["kind"] == "app" else os.path.join(
             it["path"] if it["kind"] == "folder" else box_path(name), it["mainExe"])
@@ -947,8 +999,9 @@ def play(name, item_id, extra_args=None):
         return start_setup(name, [item_id])
     else:
         M.fail("Nothing to run in “%s”." % it["name"])
+    game_dir = it["path"] if it["kind"] == "folder" else (os.path.dirname(it["path"]) if it["kind"] == "app" else None)
     spawn(name, choice, cmd, cwd, "steam" if it["kind"] in ("steam", "steamgame") else it["name"] if it["kind"] in (
-        "app",) else it["id"], bits=it.get("bits"))
+        "app",) else it["id"], bits=it.get("bits"), game_dir=game_dir)
     how = {"d3dmetal": "D3DMetal → Metal", "dxmt": "DXMT → Metal", "wine": "Wine"}[choice]
     return {"message": "Starting %s in %s (%s). The first start can take a minute." % (it["name"], name, how)}
 
@@ -1074,6 +1127,47 @@ def unpack(name, item_id):
             os.remove(joined)
 
 
+# ---- old installers Wine can't run
+def innoextract_path():
+    return shutil.which("innoextract") or next(
+        (p for p in ("/opt/homebrew/bin/innoextract", "/usr/local/bin/innoextract") if os.path.exists(p)), None)
+
+
+def is_inno(path):
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as f:
+            blob = f.read(2 << 20)
+            if size > 4 << 20:
+                f.seek(size - (2 << 20))
+                blob += f.read()
+    except OSError:
+        return False
+    return b"Inno Setup" in blob or "Inno Setup".encode("utf-16-le") in blob
+
+
+def inno_unpack(name, exe, label):
+    """Unpacks an Inno Setup installer (and its setup-N.bin parts) with innoextract, without running it: the
+    fallback for installers that crash under Wine (old 32-bit Inno Setup 5 ones do on Wine 11). The program's
+    files end up in a folder in the box, ready to play; what the installer would have done besides copying
+    files (shortcuts, registry entries, redistributables) is skipped."""
+    tmp = meta(name, "unpacking")
+    shutil.rmtree(tmp, ignore_errors=True)
+    os.makedirs(tmp)
+    try:
+        r = subprocess.run([innoextract_path(), "-s", "-e", "-d", tmp, exe], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.PIPE)
+        if r.returncode != 0:
+            raise RuntimeError("innoextract couldn't unpack it: %s" % r.stderr.decode("utf-8", "replace")[-200:])
+        out = os.path.join(tmp, "app") if os.path.isdir(os.path.join(tmp, "app")) else tmp
+        nice = re.sub(r"(?i)[ _-]*(setup|installer|install)\b", "", label).strip(" _-") or label
+        dest = unique_path(box_path(name), nice)
+        os.rename(out, dest)
+        return os.path.basename(dest)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 # ---- the setup queue
 def read_task(name):
     t = read_json(meta(name, "task.json"), None)
@@ -1168,8 +1262,13 @@ def work(name, ids):
                 except ValueError:
                     pass
                 code = spawn(name, "wine", cmd, os.path.dirname(exe), iid).wait()
-                record(iid, "installed" if code == 0 else "failed",
-                       setup_message(code))
+                if code > 0 and exe.lower().endswith(".exe") and is_inno(exe) and innoextract_path():
+                    update("Unpacking %s instead (its installer didn't run)" % it["name"])
+                    into = inno_unpack(name, exe, os.path.splitext(it["id"])[0])
+                    record(iid, "unpacked", "Its installer didn't run under Wine (error code %d), so MacX unpacked "
+                                            "it into “%s”" % (code, into), into=into)
+                else:
+                    record(iid, "installed" if code == 0 else "failed", setup_message(code))
         except Exception as e:   # one bad item must not stop the rest
             record(iid, "failed", str(e)[:300])
         done += 1

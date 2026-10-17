@@ -131,6 +131,27 @@ file. I packed them in every form MacX should accept:
   This also caught a real bug: shortcuts made under Wine store their text slightly differently from Windows,
   and MacX's reader would have broken **Play** for every game installed by a real installer. Fixed. The whole
   test can be repeated with `scripts/make-inno-repack.sh`.
+- **A real game, installed, repacked and played** — Unigine *Heaven* 4.0, a free 3D benchmark built on a real
+  game engine (DirectX 11). With your OK I downloaded its official installer (247 MB, from Unigine):
+  1. **Its 2013 installer crashes inside Wine 11 itself.** It's an old 32-bit Inno Setup 5 installer; it
+     fails on both MacX engines, also outside the sandbox, and in Apple's older Wine too. That's a Wine
+     limitation, and real repacks often use such installers, so MacX got a **fallback**: when an Inno Setup
+     installer fails and `innoextract` is installed (I installed it with Homebrew, with your OK), MacX unpacks
+     the installer instead. Heaven's took **7 seconds** and landed as a ready-to-play folder.
+  2. MacX recognised Heaven as **DirectX 11, 32-bit** (from its engine DLL; the `.exe` itself doesn't say)
+     and picked **DXMT**, because Apple's D3DMetal only runs 64-bit games.
+  3. **It runs on Metal** (you saw it on screen): about **25 fps at Medium quality, 1280×720** (8.8 fps at its
+     heavy default settings). Wine's own DirectX 11 and OpenGL routes started but drew nothing.
+  4. **The repack:** I packed the game with Inno Setup into `setup.exe` + `setup-1.bin`…`setup-4.bin`
+     (260 MB), exactly the repack layout, with a shortcut carrying Heaven's launch options. In a **brand-new
+     box** MacX installed it in **6 seconds** (all 63 files identical), found the game and its launch options
+     through the shortcut, picked DXMT and played it: **13–25 fps** depending on the scene (first start,
+     while it was still compiling shaders).
+
+  Heaven is slower than GTA V because it's 32-bit (so it can't use D3DMetal) and it's built to push
+  graphics chips hard. Its own launcher window comes up empty under Wine, like Steam's and Rockstar's did, so
+  each game now has **⋯ → Program & Launch Options…** to start the game itself directly. MacX also learned
+  to use a game's `.bat` launcher when that's how the game starts.
 - **Real installers (not made by me):** the setups that came with GTA V were used as real-world examples.
 
   | Installer | Made with | Result |
@@ -185,9 +206,12 @@ What decides how fast a game runs, and what MacX now does about it:
 
 ## Limits — what this doesn't do (honestly)
 
-- **The repack I tested is one I built myself** with the real Inno Setup (no pirated content). Big real-world
-  repacks use the same tool, plus extra compression helpers that need a lot of memory and time; close other
-  apps while one installs.
+- **The repacks I tested are ones I built** with the real Inno Setup, one of them of a real game (Heaven); no
+  pirated content. Big real-world repacks use the same tool, often an older version (which Wine 11 can crash
+  on; MacX then unpacks it with innoextract) plus extra compression helpers that need a lot of memory and time.
+- **32-bit games are slower** than 64-bit ones: they go through DXMT instead of Apple's D3DMetal.
+- **Some games' own launcher windows come up empty** under Wine. Use ⋯ → Program & Launch Options… to start
+  the game's program directly.
 - **Multi-part `.rar` archives** (`.part1.rar`, `.part2.rar`) can't be joined by macOS's built-in unpacker. Unpack
   them with *The Unarchiver* or *Keka* first.
 - **Kernel-level anti-cheat** (BattlEye, Easy Anti-Cheat, Vanguard, Call of Duty's Ricochet) doesn't work under
@@ -206,7 +230,7 @@ What decides how fast a game runs, and what MacX now does about it:
 | --- | --- |
 | The installed app | `~/Applications/MacX.app` (version 0.2.0) |
 | The installer for others | `~/Developer/macx/dist/MacX-0.2.0.dmg` |
-| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*, *Real Installers*, *Repack Lab*, *Repack Test*) |
+| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*, *Real Installers*, *Repack Lab*, *Repack Test*, *Heaven*, *Heaven Fallback*, *Heaven Repack Test*) |
 | User guide | `docs/USER-GUIDE.md` |
 | How it works (technical) | `docs/HOW-IT-WORKS.md`, section 7 |
 | This report | `docs/REPORT-0.2.md` |

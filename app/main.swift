@@ -119,6 +119,10 @@ struct BoxEntry: Codable, Identifiable, Hashable {
     let log: String
     let args: String?
     let kindSetting: String?
+    let mainExe: String?
+    let exes: [String]?
+    let launch: String?
+    let state: String?
 }
 struct TaskResult: Codable, Hashable { let id: String; let state: String; let message: String }
 struct BoxTask: Codable, Hashable {
@@ -964,6 +968,9 @@ struct GameRow: View {
     @EnvironmentObject var model: AppModel
     let box: String
     let item: BoxEntry
+    @State private var showOptions = false
+    @State private var program = ""
+    @State private var options = ""
 
     var body: some View {
         HStack(spacing: 10) {
@@ -999,6 +1006,11 @@ struct GameRow: View {
             }
             if item.source == nil {   // on W:, so MacX guessed what it is
                 Menu {
+                    Button("Program & Launch Options…") {
+                        program = item.launch == nil ? (item.mainExe ?? "") : ""
+                        options = item.args ?? ""
+                        showOptions = true
+                    }
                     Button("Treat as an Installer") {
                         Task { await model.boxAct("Saving…", ["set", box, item.id, "kind", "installer"]) }
                     }
@@ -1006,8 +1018,36 @@ struct GameRow: View {
                         .disabled(!FileManager.default.fileExists(atPath: item.log))
                 } label: { Image(systemName: "ellipsis.circle") }
                     .menuStyle(.borderlessButton).frame(width: 30).help("More")
+                    .popover(isPresented: $showOptions) { optionsPopover }
             }
         }.padding(.vertical, 4)
+    }
+
+    /// Which program a game folder starts, and with which options (for games whose own launcher doesn't work).
+    var optionsPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Program & launch options").font(.headline)
+            if let exes = item.exes, exes.count > 1 {
+                Picker("Program", selection: $program) {
+                    Text(item.launch.map { "Automatic (\($0))" } ?? "Automatic").tag("")
+                    ForEach(exes.filter { $0.lowercased().hasSuffix(".exe") }, id: \.self) { Text($0).tag($0) }
+                }
+            }
+            TextField("Options, e.g. -windowed", text: $options).textFieldStyle(.roundedBorder)
+            Text("Options are passed to the program as on Windows' command line.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Cancel") { showOptions = false }
+                Button("Save") {
+                    showOptions = false
+                    Task {
+                        if item.exes?.count ?? 0 > 1 { await model.boxAct("Saving…", ["set", box, item.id, "exe", program]) }
+                        await model.boxAct("Saving…", ["set", box, item.id, "args", options])
+                    }
+                }.keyboardShortcut(.defaultAction)
+            }
+        }.padding(14).frame(width: 380)
     }
 
     var subtitle: String {
@@ -1046,7 +1086,7 @@ struct SetupRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name).font(.headline).lineLimit(1)
                 Text(item.status ?? "").font(.caption)
-                    .foregroundStyle(item.pending == true ? Color.orange : (item.status ?? "").contains("error") ? Color.red : Color.secondary)
+                    .foregroundStyle(item.state == "failed" ? Color.red : item.pending == true ? Color.orange : Color.secondary)
             }
             Spacer()
             if item.kind == "disk", (item.status ?? "").contains("in drive") {

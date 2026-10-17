@@ -32,6 +32,10 @@ finish with a plain-language report (docs/REPORT-0.2.md).
       fullscreen option in the DX12 test, "best frame rate" guide section
 - [x] Real Inno Setup repack (built with official Inno Setup 6.7.3, downloaded with the user's OK): installed via
       MacX in a fresh box in 7 s, files identical, played on D3DMetal 112.9 fps; fixed .lnk NUL bug
+- [x] Real game: Unigine Heaven 4.0 (user OK'd download + innoextract via Homebrew). Old Inno 5 installer
+      crashes in Wine 11 -> innoextract fallback; detected 32-bit DX11 via engine DLL -> DXMT; ~25 fps medium;
+      repacked with Inno Setup 6 -> fresh box install 6 s -> played 13-25 fps. Added Program & Launch Options,
+      .bat launchers, DXMT in all program folders, status colour by state.
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 - [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 
