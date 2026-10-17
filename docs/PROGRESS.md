@@ -36,6 +36,15 @@ finish with a plain-language report (docs/REPORT-0.2.md).
       crashes in Wine 11 -> innoextract fallback; detected 32-bit DX11 via engine DLL -> DXMT; ~25 fps medium;
       repacked with Inno Setup 6 -> fresh box install 6 s -> played 13-25 fps. Added Program & Launch Options,
       .bat launchers, DXMT in all program folders, status colour by state.
+- [x] Game Mode tested from MacX's Play button: does NOT switch on (frontmost app is anonymous Wine). Docs corrected.
+- [ ] **Paused here (user asked to stop, 2026-10-17 18:25):** Unigine Superposition (64-bit DX11, official
+      installer 1,339 MB, user OK'd) is in box "Superposition", unpacked by the innoextract fallback (its
+      installer fails under Wine, code 1). On D3DMetal its launcher works but the 3D scene renders black (UI and
+      HUD draw, ~200 fps). On DXMT the launcher crashes (IDXGIKeyedMutex). Next step: the item is already set to
+      exe bin/superposition.exe + the launcher's own args + engine dxmt -> press Play, check the scene renders,
+      measure fps (xctrace), then repack with Inno Setup (Repack Lab) and install in a fresh box.
+- [ ] Game Mode: launch the game's Wine process via LaunchServices as a game-category app (wrapper bundle +
+      `open -n -a`, sandbox applied inside); exec'd processes stay anonymous.
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 - [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 

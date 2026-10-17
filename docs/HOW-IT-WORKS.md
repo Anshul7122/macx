@@ -191,10 +191,12 @@ starts its folder watches off the main thread, so a pending prompt can't freeze 
 
 - **Game Mode.** macOS turns Game Mode on for a full-screen game whose app is in the games category. Wine
   processes have no app identity of their own (RunningBoard lists them as `anon<wine>`), so macOS attributes
-  them to the app that launched them. MacX's Info.plist declares `public.app-category.games`, so games started
-  from MacX should get Game Mode when full screen. `gamepolicyd` logged "Full screen gaming session is now
-  active" / "Game mode status is now on" while a Wine game ran full screen on 16 October; runs started from
-  Terminal stayed "off". A separate game-category wrapper bundle around
+  them to the app that launched them. MacX's Info.plist declares `public.app-category.games`, but that doesn't
+  carry over: in a full-screen test started from MacX's Play button (Superposition, 17 October) `gamepolicyd`
+  logged MacX's own launch (`gameDidLaunch`, "Game mode status is now paused") and never switched Game Mode on
+  while the game was frontmost; the frontmost app was the anonymous Wine process. (One "on" event was logged on
+  16 October while a Wine game ran, cause unknown.) Making Game Mode work needs the game's Wine process itself
+  to be launched by LaunchServices as a game-category app; still to do. A separate game-category wrapper bundle around
   the `wine` binary was tried and isn't needed (an exec'd process stays anonymous anyway).
 - **MacX's own cost while a game runs.** The app refreshes status every 4 s. Attributing Wine processes to boxes
   used to list every open file of every Wine process (`lsof`), and a game keeps thousands open. It now asks

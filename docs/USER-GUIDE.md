@@ -93,10 +93,10 @@ If a game shows a black screen or closes right away, try the other choices one b
 
 ### Getting the best frame rate
 
-- **Start games from MacX** (its Play button or Steam page). MacX tells macOS it's a game app, so when the game
-  goes full screen macOS should switch on **Game Mode** (a game-controller icon appears in the menu bar): the
-  game gets priority on the processor and graphics chip, and background work waits. (Games started some other way, e.g. from Terminal, don't get Game Mode.)
-- **Play full screen**, not in a window. Game Mode only turns on for full-screen games.
+- **macOS Game Mode doesn't switch on for Windows games yet.** macOS only gives it to apps that declare
+  themselves games, and a running Windows game shows up as an anonymous "Wine" process. Fixing this is on the
+  list for a later version; until then, quit other heavy apps while you play.
+- **Play full screen**: it's smoother than a window.
 - **Keep the Mac cool and plugged in.** Apple chips slow themselves down when they get hot; that's the biggest
   difference between 45 and 60 fps in GTA V. A cool surface or a stand with a fan helps. Turn off Low Power Mode.
 - **Use the game's upscaling.** In the game's graphics settings choose **FSR** (or **DLSS** if offered, which
