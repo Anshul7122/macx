@@ -24,7 +24,9 @@ Run Windows games and apps on Apple silicon Macs, including **DirectX 12** games
 **Tested:** GTA V Enhanced (DirectX 12, Steam), Story Mode, about **45 fps** on a MacBook with M4, also started
 inside a sandboxed box. Six stand-in games covering every supported form (installer + data parts, disc
 image, zip, 7z, split archive, single exe; DirectX 9/11/12, 32- and 64-bit) install and run at the display's
-120 Hz cap. Build them with `scripts/make-test-fixtures.sh`.
+120 Hz cap. Build them with `scripts/make-test-fixtures.sh`. A real Inno Setup repack (setup.exe + .bin parts,
+LZMA2) of a DirectX 12 game, built with the official Inno Setup, installs in a fresh box and plays on D3DMetal
+(`scripts/make-inno-repack.sh`).
 
 > MacX is an independent open-source project by Anshul Chaudhary. It is not affiliated with Microsoft, Apple,
 > Valve or Rockstar Games.

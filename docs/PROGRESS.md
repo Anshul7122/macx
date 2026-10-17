@@ -30,6 +30,8 @@ finish with a plain-language report (docs/REPORT-0.2.md).
 - [x] Performance pass: Game Mode (MacX is a game-category app; Wine games are credited to it), process
       attribution via working folder (0.47 s -> 0.075 s per check), 45 s limit on read-only helper calls,
       fullscreen option in the DX12 test, "best frame rate" guide section
+- [x] Real Inno Setup repack (built with official Inno Setup 6.7.3, downloaded with the user's OK): installed via
+      MacX in a fresh box in 7 s, files identical, played on D3DMetal 112.9 fps; fixed .lnk NUL bug
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 - [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 

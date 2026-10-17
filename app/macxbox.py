@@ -745,7 +745,7 @@ def read_lnk(path):
                 e = o
                 while e + 1 < len(b) and b[e:e + 2] != b"\0\0":
                     e += 2
-                target = b[o:e].decode("utf-16-le", "replace")
+                target = b[o:e].decode("utf-16-le", "replace").split("\x00", 1)[0]
             else:
                 o = li + u32(li + 0x10)
                 target = b[o:b.index(b"\0", o)].decode("mbcs" if os.name == "nt" else "latin-1", "replace")
@@ -757,7 +757,8 @@ def read_lnk(path):
             n = u16(pos)
             pos += 2
             raw = b[pos:pos + (n * 2 if unicode else n)]
-            strings[key] = raw.decode("utf-16-le" if unicode else "latin-1", "replace")
+            # Wine's shortcut writer counts a terminating NUL that Windows' doesn't; drop it either way
+            strings[key] = raw.decode("utf-16-le" if unicode else "latin-1", "replace").split("\x00", 1)[0]
             pos += n * 2 if unicode else n
     if not target and strings.get("rel"):
         target = strings["rel"]

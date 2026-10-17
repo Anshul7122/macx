@@ -21,6 +21,8 @@ Open **MacX** (it now opens on the **Boxes** page). Two boxes are ready:
 | --- | --- | --- |
 | **Test Lab** | six small test "games" I made, in every supported form, already set up | Press **Play** on any of them. Each draws a coloured window for 8 seconds. |
 | **GTA Box** | a copy of your Steam setup with GTA V Enhanced (made instantly, uses no extra disk space) | Press **Play** next to *Grand Theft Auto V Enhanced*. Steam, then the Rockstar launcher, then the game start inside the box. |
+| **Repack Test** | a game installed from a real Inno Setup repack (setup.exe + .bin parts) | Press **Play** next to *Inno Racer*. |
+| **Repack Lab** | Inno Setup itself, and the repack it built (*Inno Racer Repack*) | Drop the *Inno Racer Repack* folder into a new box to try the whole install yourself. |
 | **Real Installers** | two real installers that came with GTA V (Rockstar's Social Club and Games Launcher) and Microsoft's Visual C++ installer | See "Real installers" below. Social Club is installed; the Rockstar launcher installer waits for your clicks. |
 
 To try your own files: **New Box** → **Add Files…** (pick as many as you like) → MacX sets them up → **Play**.
@@ -116,6 +118,19 @@ file. I packed them in every form MacX should accept:
   gameplay** (with good cooling). For comparison I also started it from your original setup and sampled both
   the same way: they reach the same state with the same memory use (~1.4–1.5 GB at the start screen), the same
   28 game archives open and ~97 threads.
+- **A real Inno Setup repack** (the format of game repacks and GOG offline installers). With your OK I
+  downloaded the official Inno Setup 6.7.3 installer (10.6 MB, from Inno Setup's own release page):
+  1. MacX installed Inno Setup silently in a box (`/VERYSILENT`), through the normal Set Up queue.
+  2. Inno Setup, running in that box, built a real repack of a DirectX 12 game: `setup.exe` plus
+     `setup-1.bin`, `-2.bin` and `-3.bin`, LZMA2-compressed and solid, 120 MB packed into 63 MB.
+  3. That repack folder went into a **brand-new box**. MacX recognised it as an installer, installed it
+     quietly in **7 seconds** with every file byte-for-byte identical to the original, and found the game
+     through the shortcuts the installer made.
+  4. It recognised the game as DirectX 12, 64-bit, picked D3DMetal, and **Play ran it on Metal at 112.9 fps**.
+
+  This also caught a real bug: shortcuts made under Wine store their text slightly differently from Windows,
+  and MacX's reader would have broken **Play** for every game installed by a real installer. Fixed. The whole
+  test can be repeated with `scripts/make-inno-repack.sh`.
 - **Real installers (not made by me):** the setups that came with GTA V were used as real-world examples.
 
   | Installer | Made with | Result |
@@ -162,14 +177,17 @@ What decides how fast a game runs, and what MacX now does about it:
    newly built MacX has to be allowed to look at it again, and while macOS waited for that answer, the app's
    window waited too. MacX now loads boxes first, watches folders in the background, and gives its helper
    requests a time limit, so the window never freezes.
-9. **Real installers aren't always called "setup".** Rockstar's was taken for a game. MacX now also recognises
+9. **Shortcuts made by real installers broke Play.** Wine writes a hidden end-of-text character into
+   shortcut fields; MacX passed it on to the game and starting it failed. Found with the real Inno Setup repack;
+   fixed.
+10. **Real installers aren't always called "setup".** Rockstar's was taken for a game. MacX now also recognises
    installers by the tool they were made with, and you can correct it with the ⋯ menu.
 
 ## Limits — what this doesn't do (honestly)
 
-- **I tested with stand-ins, not real repacks.** Real repack installers are built with the same installer tool
-  (Inno Setup) and run the same way, but they unpack with heavy compression and can need a lot of memory and
-  time. Close other apps while one installs.
+- **The repack I tested is one I built myself** with the real Inno Setup (no pirated content). Big real-world
+  repacks use the same tool, plus extra compression helpers that need a lot of memory and time; close other
+  apps while one installs.
 - **Multi-part `.rar` archives** (`.part1.rar`, `.part2.rar`) can't be joined by macOS's built-in unpacker. Unpack
   them with *The Unarchiver* or *Keka* first.
 - **Kernel-level anti-cheat** (BattlEye, Easy Anti-Cheat, Vanguard, Call of Duty's Ricochet) doesn't work under
@@ -188,7 +206,7 @@ What decides how fast a game runs, and what MacX now does about it:
 | --- | --- |
 | The installed app | `~/Applications/MacX.app` (version 0.2.0) |
 | The installer for others | `~/Developer/macx/dist/MacX-0.2.0.dmg` |
-| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*, *Real Installers*) |
+| Your boxes | `~/MacX Boxes/` (*Test Lab*, *GTA Box*, *Real Installers*, *Repack Lab*, *Repack Test*) |
 | User guide | `docs/USER-GUIDE.md` |
 | How it works (technical) | `docs/HOW-IT-WORKS.md`, section 7 |
 | This report | `docs/REPORT-0.2.md` |
@@ -196,7 +214,8 @@ What decides how fast a game runs, and what MacX now does about it:
 | The code | `app/macxbox.py` (boxes), `app/main.swift` (the app), `engine/tests/` (test programs), `scripts/make-test-fixtures.sh` |
 | Saved versions (git) | branch `feature/boxes`, on top of 0.1.1, **not pushed to GitHub yet** |
 
-To remove the test boxes: drag *Test Lab* (about 0.7 GB), *Real Installers* or *GTA Box* to the Trash. *GTA Box* shares its
+To remove the test boxes: drag *Test Lab* (about 0.7 GB), *Real Installers*, *Repack Lab* (about 0.3 GB),
+*Repack Test* or *GTA Box* to the Trash. *GTA Box* shares its
 files with your original setup, so deleting it frees only what changed inside it.
 
 ## Next milestone (your plan): a shippable, downloadable MacX

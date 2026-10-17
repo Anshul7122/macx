@@ -157,6 +157,13 @@ Findings that shaped this:
 launcher's Chromium helpers are wrapped (`--in-process-gpu`), and the Rockstar executables are set to DXVK
 with D3DMetal's `d3d12` / `nvapi64` hidden (written with `regedit` once, then left alone).
 
+**A real Inno Setup repack.** Inno Setup 6.7.3 installed into a box with `/VERYSILENT`; its `ISCC.exe`, run in
+the box, compiled `engine/tests/innoracer.iss` (LZMA2, solid, `DiskSpanning` into 30 MB `setup-N.bin` slices) to
+`setup.exe` + 3 parts; a fresh box installed that in 7 s (files byte-identical) and played the game on D3DMetal
+at 112.9 fps (`scripts/make-inno-repack.sh` repeats all of it). It exposed one bug: Wine's IShellLink writer
+counts a terminating NUL in the .lnk StringData fields, so arguments came back as `"\0"`; strings are now cut at
+the first NUL.
+
 Real installers tried: Rockstar's Social Club setup (NSIS, 122 MB) installs quietly in about 15 s; the Rockstar
 Games Launcher's own installer ignores `/S` and waits for clicks, as on Windows; Microsoft's VC++ 2015-2022
 redistributable (WiX Burn) fails under Wine 11 itself (`Failed to extract all files from container, erf
