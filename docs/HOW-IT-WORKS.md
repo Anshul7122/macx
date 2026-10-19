@@ -177,6 +177,22 @@ a layered window that stays transparent under Wine, hence per-game Program & Lau
 top-level launcher is a `.bat` naming one of their programs start through that `.bat` (`cmd /c`), and DXMT's
 DLLs are placed next to every program folder of the game, not only the started one.
 
+**Unigine Superposition (64-bit DX11) on D3DMetal.** Black 3D scene with the UI drawing: the engine log showed
+`E5017: Aborting due to not yet implemented feature: Double-to-integer conversion` — Wine's builtin
+`d3dcompiler_47` (vkd3d-shader's HLSL compiler) rather than Microsoft's copy shipped in the game's `bin`.
+Boxes now run every game with `d3dcompiler_42…47,d3dx11_42/43,d3dx9_42/43=n,b`: a game's own copy wins, Wine's
+builtin is the fallback. Then the benchmark stopped right after "Benchmark running": the engine (a separate
+process from its launcher) never became the active app, since macOS 14's cooperative activation doesn't let a
+new process take focus; one click into its window fixes it. 1080p Medium: score 4,259, 31.86 fps average.
+
+**Downloads into a box ("MacX Games" on the Desktop).** A box flagged `installHere` passes `/DIR=W:\<Game>` to
+Inno Setup installers (repacks, GOG), with the name cleaned of `[… Repack]`, versions and "setup"; files that
+are still downloading (`.crdownload`, `.part`, `.!qB`, …) are not listed; `.exe`s opened from Finder inside a
+box are set up or played in that box (not the shared setup); and the innoextract fallback is skipped when the
+unpacked files are under 5% of the installer's data (repacks keep the game in their own compressed format,
+which only their installer can read). The Desktop entry is a link to `~/MacX Boxes/MacX Games`, since the
+Desktop itself is a protected folder.
+
 Real installers tried: Rockstar's Social Club setup (NSIS, 122 MB) installs quietly in about 15 s; the Rockstar
 Games Launcher's own installer ignores `/S` and waits for clicks, as on Windows; Microsoft's VC++ 2015-2022
 redistributable (WiX Burn) fails under Wine 11 itself (`Failed to extract all files from container, erf

@@ -319,6 +319,9 @@ final class AppModel: ObservableObject {
         _ = await Backend.call(MsgResp.self, ["setup"])
         try? FileManager.default.createDirectory(atPath: boxesPath, withIntermediateDirectories: true)
         await refreshStatus()
+        if status?.setupOK == true {   // the "MacX Games" folder on the Desktop (a box; games install into it)
+            _ = await Backend.call(MsgResp.self, ["box", "desktop"])
+        }
         await refreshBoxes()   // boxes first: they don't depend on the Desktop folder (which macOS may ask about)
         await refreshAll()
         // Watching folders talks to the file system (and, for an iCloud-synced Desktop, to iCloud), which can be

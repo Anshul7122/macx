@@ -18,6 +18,23 @@ whole Windows PC is gone, with nothing left behind.
 3. The setup screen checks your Mac and installs what it needs (a few minutes). You need Apple's free **Game
    Porting Toolkit** installed first; the setup screen tells you if it's missing.
 
+## The quickest way: the "MacX Games" folder on your Desktop
+
+MacX puts a folder called **MacX Games** on your Desktop. It's a ready-made box made for downloads:
+
+1. **Download the game straight into it** (save the download there, or drag it in). Files still downloading
+   are ignored until they're complete.
+2. **Start it**: double-click the installer (`setup.exe`) in Finder, or open MacX → Boxes → *MacX Games* and
+   press **Install** (or **Set Up All**). Archives are unpacked and discs inserted first, automatically.
+3. **Click through the installer** as on Windows. It's already set to install the game **into this same
+   folder** (for example `MacX Games/Game Name`); you can change that on its folder page if you want.
+4. When it's done, the game appears in MacX under *Games & programs*. Press **Play**.
+5. You can now **delete the download package** (the installer and its `.bin` files); the installed game folder
+   is all you need.
+
+If a game's window opens but doesn't react, or a benchmark stops by itself straight away, **click once into the
+game's window**: macOS doesn't always hand the focus to a game that a launcher started.
+
 ## 2. Make a box
 
 Open MacX. It starts on the **Boxes** page. Press **New Box**. A folder called *Box 1* appears in

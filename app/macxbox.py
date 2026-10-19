@@ -218,13 +218,20 @@ def norm_choice(c):
     return c if c in CHOICES else "auto"
 
 
+# Games that ship Microsoft's own shader compiler / D3DX next to them get those, not Wine's builtin versions,
+# whose HLSL compiler is incomplete ("E5017: not yet implemented feature"), leaving shaders uncompiled and the 3D
+# scene black (Unigine Superposition, Heaven). Without a copy beside the game, Wine's builtin is used as before.
+GAME_DLLS = "d3dcompiler_42,d3dcompiler_43,d3dcompiler_46,d3dcompiler_47,d3dx11_42,d3dx11_43,d3dx9_42,d3dx9_43=n,b"
+
+
 def engine_env(choice):
     """(engine id, extra environment) for a graphics choice."""
+    base = M.BASE_OVERRIDES + ";" + GAME_DLLS
     if choice == "d3dmetal" and M.engine_ok("d3dmetal"):
-        return "d3dmetal", {}
+        return "d3dmetal", {"WINEDLLOVERRIDES": base}
     if choice == "dxmt":
-        return "wine11", {"WINEDLLOVERRIDES": M.BASE_OVERRIDES + ";d3d11,dxgi,d3d10core=n,b"}
-    return "wine11", {}
+        return "wine11", {"WINEDLLOVERRIDES": base + ";d3d11,dxgi,d3d10core=n,b"}
+    return "wine11", {"WINEDLLOVERRIDES": base}
 
 
 def dxmt_dir():
@@ -360,6 +367,24 @@ def finish_box(name, extra=None):
     with open(os.path.join(box_path(name), ".windows-label"), "w") as f:
         f.write(name[:32])
     save_box(name, dict({"name": name, "created": time.time(), "items": {}, "detect": {}}, **(extra or {})))
+
+
+DESKTOP_BOX = "MacX Games"
+
+
+def desktop_folder():
+    """A box that shows up on the Desktop as "MacX Games": download games (repacks, installers, archives) straight
+    into it; installers put the game into the same folder, so the download can be deleted afterwards. The box lives
+    in ~/MacX Boxes like any other (the Desktop is a protected folder on macOS); the Desktop item is a link to it."""
+    if not is_box(box_path(DESKTOP_BOX)):
+        new_box(DESKTOP_BOX)
+    data = load_box(DESKTOP_BOX)
+    data["installHere"] = True
+    save_box(DESKTOP_BOX, data)
+    link = os.path.join(M.HOME, "Desktop", DESKTOP_BOX)
+    if not os.path.lexists(link):
+        os.symlink(box_path(DESKTOP_BOX), link)
+    return link
 
 
 def clone_main(name=None):
@@ -645,6 +670,7 @@ def spawn(name, choice, cmd, cwd, log_name, bits=None, game_dir=None):
 # ------------------------------------------------------------------------------------------------- files on W:
 ARCHIVE_RE = re.compile(r"\.(zip|7z|rar|tar|tgz|tbz2?|txz|cab|tar\.(gz|bz2|xz))$|\.(7z|zip)\.001$", re.I)
 ARCHIVE_STEM_RE = re.compile(r"(\.part0*1)?\.(zip|7z|rar|tar|tgz|tbz2?|txz|cab|tar\.(gz|bz2|xz))(\.001)?$", re.I)
+PARTIAL_RE = re.compile(r"\.(crdownload|part|partial|download|opdownload|!qb|!ut|aria2|tmp)$", re.I)   # still downloading
 MORE_PARTS_RE = re.compile(r"\.(7z|zip)\.(?!001$)\d{3}$|\.part(?!0*1\.rar$)\d+\.rar$|\.r\d\d$", re.I)
 DISK_RE = re.compile(r"\.(iso|img)$", re.I)
 DISC_SETUP_RE = re.compile(r"(setup|install|autorun)\.(exe|msi)$", re.I)
@@ -686,7 +712,8 @@ def file_items(name, data, st, running):
     folder = box_path(name)
     items = []
     for entry in sorted(os.listdir(folder), key=str.lower):
-        if entry.startswith(".") or entry in M.HIDDEN or MORE_PARTS_RE.search(entry) or entry.lower() in DXMT_DLLS:
+        if (entry.startswith(".") or entry in M.HIDDEN or MORE_PARTS_RE.search(entry) or PARTIAL_RE.search(entry)
+                or entry.lower() in DXMT_DLLS):
             continue
         path = os.path.join(folder, entry)
         cfg, state = data["items"].get(entry, {}), st["items"].get(entry, {})
@@ -1168,6 +1195,40 @@ def inno_unpack(name, exe, label):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def game_folder_name(label):
+    """'Some Game [FitGirl Repack]' / 'setup_some_game_1.2' -> a plain folder name for the installed game."""
+    n = re.sub(r"\[.*?\]|\(.*?\)|\{.*?\}", " ", label)
+    n = re.sub(r"(?i)(?<![a-z])v?\d+(\.\d+)+", " ", n)          # version numbers
+    n = re.sub(r"[_.]+", " ", n)
+    n = re.sub(r"(?i)\b(repack|setup|installer|install|gog)\b", " ", n)
+    return re.sub(r"\s+", " ", n).strip(" -_") or "Game"
+
+
+def install_here_args(name, it, exe, args):
+    """For boxes set to keep games in their own folder: tell an Inno Setup installer (repacks, GOG) to install
+    into W:\\<Game> instead of C:\\..., unless its options already choose a folder. Its window still lets you
+    change it."""
+    if not load_box(name).get("installHere") or not is_inno(exe) or re.search(r"(?i)/dir=", " ".join(args)):
+        return []
+    label = it["id"] if os.path.isdir(it["path"]) else os.path.splitext(it["id"])[0]
+    base = game_folder_name(label)
+    target = base if not os.path.lexists(os.path.join(box_path(name), base)) or base == it["id"] else base + " (game)"
+    return ["/DIR=W:\\" + target]
+
+
+def payload_size(exe):
+    """Size of an installer plus the data parts next to it (setup-1.bin, data1.bin, ...)."""
+    folder = os.path.dirname(exe)
+    total = os.path.getsize(exe)
+    for f in os.listdir(folder):
+        if f.lower().endswith(".bin") or re.search(r"\.(bin|cab|dat)$", f, re.I) and "data" in f.lower():
+            try:
+                total += os.path.getsize(os.path.join(folder, f))
+            except OSError:
+                pass
+    return total
+
+
 # ---- the setup queue
 def read_task(name):
     t = read_json(meta(name, "task.json"), None)
@@ -1258,15 +1319,28 @@ def work(name, ids):
                 exe = os.path.join(it["path"], it["mainExe"]) if os.path.isdir(it["path"]) else it["path"]
                 cmd = ["msiexec", "/i", it["winPath"]] if exe.lower().endswith(".msi") else [it["winPath"]]
                 try:
-                    cmd += shlex.split(it.get("args") or "")   # e.g. /S (NSIS) or /VERYSILENT (Inno Setup)
+                    user_args = shlex.split(it.get("args") or "")   # e.g. /S (NSIS) or /VERYSILENT (Inno Setup)
                 except ValueError:
-                    pass
+                    user_args = []
+                if exe.lower().endswith(".exe"):
+                    cmd += user_args + install_here_args(name, it, exe, user_args)
+                else:
+                    cmd += user_args
                 code = spawn(name, "wine", cmd, os.path.dirname(exe), iid).wait()
                 if code > 0 and exe.lower().endswith(".exe") and is_inno(exe) and innoextract_path():
                     update("Unpacking %s instead (its installer didn't run)" % it["name"])
                     into = inno_unpack(name, exe, os.path.splitext(it["id"])[0])
-                    record(iid, "unpacked", "Its installer didn't run under Wine (error code %d), so MacX unpacked "
-                                            "it into “%s”" % (code, into), into=into)
+                    got = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(os.path.join(box_path(name), into))
+                              for f in fs)
+                    if payload_size(exe) > 200 << 20 and got < payload_size(exe) // 20:
+                        # repacks keep the game in their own compressed format, which only their installer reads
+                        shutil.rmtree(os.path.join(box_path(name), into), ignore_errors=True)
+                        record(iid, "failed", "Its installer didn't run under Wine (error code %d), and its game data is "
+                                              "packed in the installer's own format, so it can't be unpacked without "
+                                              "it. See the Log." % code)
+                    else:
+                        record(iid, "unpacked", "Its installer didn't run under Wine (error code %d), so MacX unpacked "
+                                                "it into “%s”" % (code, into), into=into)
                 else:
                     record(iid, "installed" if code == 0 else "failed", setup_message(code))
         except Exception as e:   # one bad item must not stop the rest
@@ -1364,6 +1438,14 @@ def main(argv):
     if cmd == "rename":
         rename_box(a[0], a[1])
         return {"message": "Renamed to “%s”." % a[1]}
+    if cmd == "desktop":
+        link = desktop_folder()
+        return {"message": "“%s” is on your Desktop. Download or drop games into it." % DESKTOP_BOX, "path": link}
+    if cmd == "set-box":       # set-box <box> installHere on|off
+        data = load_box(a[0])
+        data[a[1]] = a[2] in ("on", "1", "true")
+        save_box(a[0], data)
+        return {"message": "Saved."}
     if cmd == "clone-main":
         n = clone_main(a[0] if a else None)
         return {"message": "Copied your setup into the box “%s”. The original is unchanged." % n, "name": n}

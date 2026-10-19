@@ -37,7 +37,13 @@ finish with a plain-language report (docs/REPORT-0.2.md).
       repacked with Inno Setup 6 -> fresh box install 6 s -> played 13-25 fps. Added Program & Launch Options,
       .bat launchers, DXMT in all program folders, status colour by state.
 - [x] Game Mode tested from MacX's Play button: does NOT switch on (frontmost app is anonymous Wine). Docs corrected.
-- [ ] **Paused here (user asked to stop, 2026-10-17 18:25):** Unigine Superposition (64-bit DX11, official
+- [x] Superposition on D3DMetal works (2026-10-20): game shaders compiled with Wine's builtin d3dcompiler -> black;
+      boxes now prefer games' own d3dcompiler/d3dx (n,b). Benchmark stop = focus (click into window). Score 4259,
+      31.9 fps avg 1080p Medium. Repack (Inno, 1.5 GB) installs in a fresh box in 91 s, detected D3DMetal.
+- [x] MVP for the user's own test: "MacX Games" Desktop folder (box, installHere -> Inno /DIR=W:\Game),
+      in-progress downloads hidden, Finder double-click inside a box handled in that box, innoextract
+      fallback sanity check. Next: user downloads a repack, installs it there, plays, records a video for analysis.
+- [ ] ~~Paused here (user asked to stop, 2026-10-17 18:25):~~ Unigine Superposition (64-bit DX11, official
       installer 1,339 MB, user OK'd) is in box "Superposition", unpacked by the innoextract fallback (its
       installer fails under Wine, code 1). On D3DMetal its launcher works but the 3D scene renders black (UI and
       HUD draw, ~200 fps). On DXMT the launcher crashes (IDXGIKeyedMutex). Next step: the item is already set to

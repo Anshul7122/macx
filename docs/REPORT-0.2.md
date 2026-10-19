@@ -152,6 +152,16 @@ file. I packed them in every form MacX should accept:
   graphics chips hard. Its own launcher window comes up empty under Wine, like Steam's and Rockstar's did, so
   each game now has **⋯ → Program & Launch Options…** to start the game itself directly. MacX also learned
   to use a game's `.bat` launcher when that's how the game starts.
+- **A 64-bit real game on D3DMetal, the GTA path: Unigine *Superposition*** (official installer, 1,339 MB,
+  downloaded with your OK). Its installer fails under Wine too, so MacX's fallback unpacked it (45 s). At first
+  its 3D scene stayed **black**. The cause wasn't D3DMetal: Wine was compiling the game's shaders with its own
+  incomplete compiler instead of Microsoft's, which the game ships in its folder. MacX now always prefers a
+  game's own `d3dcompiler`/`d3dx` files, and the same fix also cleared Heaven's shader errors. Second catch: its
+  benchmark stopped at once because the game's window never became the active one (newer macOS doesn't let a
+  program a launcher started take focus); one click into the window fixes that. Result, **Superposition's own
+  score at 1080p Medium: 4,259, average 31.9 fps** (min 12.3, max 44.4); Instruments measured 28.6 fps mid-run.
+  Repacked with Inno Setup (setup.exe + 3 parts, 1.5 GB) and installed in a brand-new box in 91 s (all 107
+  files identical), MacX found it as a 64-bit DirectX 11 game and set it to D3DMetal.
 - **Real installers (not made by me):** the setups that came with GTA V were used as real-world examples.
 
   | Installer | Made with | Result |
@@ -162,6 +172,14 @@ file. I packed them in every form MacX should accept:
 - **Your original setup was checked** after copying: unchanged.
 - **Leftovers check (from the first part of the boxes work):** a box deleted in Finder while a game was
   running left nothing behind. Its programs were stopped and its temporary files removed.
+
+## Your test: the "MacX Games" folder
+
+Rather than me testing what I built, you'll test a real download. MacX now creates a **MacX Games** folder on
+your Desktop: download a game (a repack, an installer, an archive) straight into it, double-click its
+`setup.exe` (or press Install in MacX), click through the installer, and the game is installed **into the
+same folder**. Then delete the download package, keep the game folder, press Play, and record it. How-to:
+[USER-GUIDE.md](USER-GUIDE.md), first section.
 
 ## Performance
 

@@ -1430,6 +1430,17 @@ def cmd_trash(iid):
 def cmd_open(path):
     """A file opened from Finder (Open With → MacX)."""
     real = os.path.realpath(path)
+    boxes = os.path.realpath(BOXES_DIR) + os.sep
+    if real.startswith(boxes):           # inside a box: install / unpack / play it there, not in the shared setup
+        import macxbox
+        parts = real[len(boxes):].split(os.sep)
+        box, entry = parts[0], parts[1] if len(parts) > 1 else ""
+        it = next((f for f in macxbox.box_view(box)["files"] if f["id"] == entry), None)
+        if not it:
+            fail("MacX can't open that from inside the box.")
+        if it["kind"] in ("installer", "archive", "disk"):
+            return out(macxbox.start_setup(box, [entry]))
+        return out(macxbox.play(box, entry))
     drop = os.path.realpath(DROP)
     if real.startswith(drop + os.sep):
         iid = os.path.relpath(real, drop).split(os.sep)[0]
