@@ -484,12 +484,12 @@ def stop_box(name):
         kill([task["pid"]])
 
 
-def orphan_cleanup():
+def orphan_cleanup(pbp=None):
     """Wine processes whose box folder was deleted (e.g. moved to the Trash in Finder) are stopped, and their
     Wine server files and inserted disc images are cleaned up."""
     live = [os.path.realpath(prefix(n)) for n in box_names()]
     killed = []
-    for pfx, procs in processes_by_prefix().items():
+    for pfx, procs in (pbp if pbp is not None else processes_by_prefix()).items():
         if "/%s/prefix" % META in pfx and pfx not in live:
             kill([p["pid"] for p in procs])
             killed += [p["pid"] for p in procs]
@@ -1387,10 +1387,30 @@ def migrate_main():
     save_box(MAIN, {"name": MAIN, "created": time.time(), "migrated": True, "items": {}, "detect": {}})
 
 
+SEEN = os.path.join(M.ROOT, "boxes-seen.json")
+
+
 def list_boxes():
-    orphan_cleanup()
+    names = box_names()
     pbp = processes_by_prefix()
-    return [box_view(n, pbp) for n in box_names()]
+    seen = read_json(SEEN, None)
+    # cleaning up after deleted boxes is only needed when one has gone since the last look (it costs lsof +
+    # hdiutil calls, and the app lists boxes every few seconds while a game runs)
+    if seen is None or set(seen) - set(names):
+        orphan_cleanup(pbp)
+    if seen != names:
+        write_json(SEEN, names)
+    return [box_view(n, pbp) for n in names]
+
+
+def box_status():
+    """Just running / busy per box: what the app polls while a game runs (a full list rescans every box)."""
+    pbp = processes_by_prefix()
+    res = {}
+    for n in box_names():
+        t = read_task(n)
+        res[n] = {"running": bool(pbp.get(os.path.realpath(prefix(n)))), "busy": bool(t and not t.get("finished"))}
+    return res
 
 
 def main(argv):
@@ -1398,6 +1418,8 @@ def main(argv):
     if cmd == "list":
         return {"boxes": list_boxes(), "root": BOXES, "canMigrate": can_migrate(),
                 "canClone": os.path.isdir(os.path.join(os.path.realpath(M.PREFIX), "drive_c"))}
+    if cmd == "status":
+        return {"boxes": box_status()}
     if cmd == "show":
         check_box(a[0])
         return {"box": box_view(a[0])}

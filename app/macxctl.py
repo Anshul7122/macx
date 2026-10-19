@@ -868,6 +868,20 @@ def storage_items():
         dict(id="drop", group="MacX folder (W:)", name="MacX folder on the Desktop", path=DROP,
              size=du_bytes(DROP), removable=False, note="Everything you put in it; Windows sees it as drive W:."),
     ]
+    try:
+        import macxbox
+        for name in macxbox.box_names():
+            data = macxbox.load_box(name)
+            path = macxbox.box_path(name)
+            if data.get("clonedFrom"):
+                note = ("A copy of your Steam setup. It shares its files with the original, so it only really uses "
+                        "what changed inside it; deleting it frees that, not this whole number.")
+            else:
+                note = "Games, installers and saves in this box, plus its own Windows (about 0.5 GB, shared with other boxes)."
+            items.append(dict(id="box:" + name, group="Boxes", name=name, path=path, size=du_bytes(path),
+                              removable=True, note=note, box=name))
+    except Exception:
+        pass
     if os.path.isdir(GPTK_PREFIX):
         items.append(dict(id="gptkc", group="Windows side (C: drive)", name="D3DMetal engine's C: drive",
                           path=os.path.join(GPTK_PREFIX, "drive_c"), size=du_bytes(GPTK_PREFIX), removable=False,

@@ -181,6 +181,44 @@ your Desktop: download a game (a repack, an installer, an archive) straight into
 same folder**. Then delete the download package, keep the game folder, press Play, and record it. How-to:
 [USER-GUIDE.md](USER-GUIDE.md), first section.
 
+## Audit (20 October)
+
+| Finding | What it was | Fixed |
+| --- | --- | --- |
+| **Storage → Refresh "does nothing"** | It did re-measure, in under a second, but showed nothing while working and the numbers rarely change, so it looked dead. | A "Measuring…" spinner and an "Updated at …" time; the free-space bar refreshes too. |
+| **Storage didn't show boxes** | The page predates boxes, so ~120 GB of box folders were invisible there. | A **Boxes** group with each box's size; a box can be moved to the Trash from there (programs in it are stopped first). The Steam-setup copy is marked as sharing its files with the original. |
+| **MacX's own background work while you play** | Every 4 s the app rescanned every box (~1 s of processor time), about a quarter of one core, which is extra heat on a fanless Mac. | While a game runs: a light check every 12 s (~0.3 s), a full rescan only when something changes. |
+| **Every button wired?** | Checked all 41 commands the app sends against the backend. | All handled. |
+| **Black 3D scenes** (Superposition, Heaven's shader errors) | Wine compiled the games' shaders with its own incomplete compiler instead of Microsoft's, which the games ship. | Games' own compiler is always preferred. |
+| **Benchmark stopping at once** | A game started by its launcher didn't become the active window (newer macOS rule). | Not yet automatic: click once into the game window. |
+
+Still open: Game Mode doesn't engage for Windows games; the older *MacX Drive* page and Boxes overlap and should
+merge; folder sizes count files shared between boxes in full.
+
+## Why frames drop, and cooling
+
+Your Mac is a **15-inch MacBook Air with M4**, and the Air has **no fan**. Its chip runs at full speed until it
+reaches its temperature limit, then lowers its speed to stay there. In a game that shows up as a frame rate that
+is high at first and then settles lower, with a regular, repeating pattern in the frame graph as the chip steps
+its speed down and up. That matches what you saw (45 fps before, about 60 fps with better cooling), and it
+affects every game the same way, Windows or Mac.
+
+Other causes and how to tell them apart:
+
+| Pattern | Likely cause | What helps |
+| --- | --- | --- |
+| Starts smooth, gets slower after a few minutes; the Mac's underside is hot | Heat (the Air slowing itself down) | Cooling, a lower frame cap, upscaling (FSR / MetalFX) |
+| Short spikes when something new appears (first time through an area, new effects) | Shaders being translated for Metal the first time | They get fewer on the second run (cached) |
+| Always lower in busy scenes (crowds, traffic) | The processor side: Windows game code is translated for Apple chips (Rosetta) | Lower crowd/population and draw-distance settings |
+| A regular hitch every few seconds that cooling doesn't change | Background work | Quit other apps; MacX's own checks are now light (see Audit) |
+
+**On cooling** (your own decision):
+- **External cooling is safe and reversible**: a laptop cooling pad with a fan under the Air (it cools the
+  aluminium bottom, which is the Air's heatsink), a stand that lifts it, a cool room, playing plugged in.
+- **The thermal-pad mod** (a pad between the chip's heat spreader and the bottom case, so the whole case works as
+  a heatsink) does improve sustained performance in tests on M-series Airs. But it means opening the Mac, it voids
+  the warranty, the bottom gets noticeably hotter to the touch, and a wrong pad thickness can press on parts.
+
 ## Performance
 
 What decides how fast a game runs, and what MacX now does about it:

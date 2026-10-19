@@ -97,6 +97,7 @@ struct StorageItem: Codable, Identifiable, Hashable {
     let size: Int64
     let removable: Bool
     let note: String
+    let box: String?
 }
 
 /// Something in a box: a file on its W: drive, or a game/program installed inside it.
@@ -147,6 +148,8 @@ struct WinBox: Codable, Identifiable, Hashable {
     var setupFiles: [BoxEntry] { files.filter { ["installer", "archive", "disk"].contains($0.kind) } }
     var otherFiles: [BoxEntry] { files.filter { $0.playable != true && !["installer", "archive", "disk"].contains($0.kind) } }
 }
+struct BoxState: Codable, Hashable { let running: Bool; let busy: Bool }
+struct BoxStatusResp: Codable { let ok: Bool; let boxes: [String: BoxState]? }
 struct BoxesResp: Codable {
     let ok: Bool; let error: String?; let boxes: [WinBox]?; let root: String?; let canMigrate: Bool?; let canClone: Bool?
 }
@@ -291,6 +294,7 @@ final class AppModel: ObservableObject {
     @Published var games: [Game] = []
     @Published var storage: [StorageItem] = []
     @Published var storageLoading = false
+    @Published var storageUpdated: Date?
     @Published var checks: [Check] = []
     @Published var paths: [PathItem] = []
     @Published var busy: String?
@@ -307,10 +311,26 @@ final class AppModel: ObservableObject {
     init() {
         Task { await start() }
         timer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.refreshStatus()
-                // keep boxes live while something runs or is being set up in one
-                if self?.boxes.contains(where: { $0.running || $0.busy }) == true { await self?.refreshBoxes() }
+            Task { @MainActor in await self?.tick() }
+        }
+    }
+
+    private var ticks = 0
+
+    /// Every 4 s; every 12 s while a game runs, and then only a light check, so MacX itself costs a game
+    /// (and a fanless Mac's heat budget) as little as possible.
+    func tick() async {
+        ticks += 1
+        let gaming = !(status?.runningGames.isEmpty ?? true) || !(status?.runningItems.isEmpty ?? true)
+            || boxes.contains(where: { $0.running })
+        if gaming && ticks % 3 != 0 { return }
+        await refreshStatus()
+        if boxes.contains(where: { $0.busy }) {
+            await refreshBoxes()          // a setup is running: its progress bar needs the full list
+        } else if boxes.contains(where: { $0.running }) {
+            if let r = await Backend.call(BoxStatusResp.self, ["box", "status"]), let st = r.boxes {
+                let changed = boxes.contains { b in st[b.name].map { $0.running != b.running || $0.busy != b.busy } ?? true }
+                if changed { await refreshBoxes() }
             }
         }
     }
@@ -414,6 +434,8 @@ final class AppModel: ObservableObject {
     func refreshStorage() async {
         storageLoading = true
         if let s = await Backend.call(StorageResp.self, ["storage"]) { storage = s.items ?? [] }
+        await refreshStatus()   // the free-space bar
+        storageUpdated = Date()
         storageLoading = false
     }
 
@@ -1737,7 +1759,7 @@ struct PathRow: View {
 
 // MARK: - Storage
 
-let storageGroups = ["MacX folder (W:)", "Games", "Windows side (C: drive)", "Engine", "Leftovers (safe to remove)"]
+let storageGroups = ["Boxes", "MacX folder (W:)", "Games", "Windows side (C: drive)", "Engine", "Leftovers (safe to remove)"]
 
 struct StorageView: View {
     @EnvironmentObject var model: AppModel
@@ -1749,11 +1771,14 @@ struct StorageView: View {
                 HStack {
                     Header(title: "Storage", subtitle: "What the Windows side uses on your Mac, and what you can safely remove.")
                     Spacer()
+                    if model.storageLoading {
+                        ProgressView().controlSize(.small)
+                        Text("Measuring…").font(.callout).foregroundStyle(.secondary)
+                    } else if let t = model.storageUpdated {
+                        Text("Updated \(t.formatted(date: .omitted, time: .standard))").font(.callout).foregroundStyle(.secondary)
+                    }
                     Button { Task { await model.refreshStorage() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                         .disabled(model.storageLoading)
-                }
-                if model.storageLoading && model.storage.isEmpty {
-                    HStack { ProgressView().controlSize(.small); Text("Measuring folders (big games take a few seconds)…") }
                 }
                 if let s = model.status {
                     Card(title: "Free space", systemImage: "internaldrive") {
@@ -1794,7 +1819,10 @@ struct StorageView: View {
         .confirmationDialog("Move “\(toTrash?.name ?? "")” to the Trash?", isPresented: Binding(
             get: { toTrash != nil }, set: { if !$0 { toTrash = nil } })) {
             Button("Move to Trash", role: .destructive) {
-                if let item = toTrash {
+                if let item = toTrash, let box = item.box {
+                    // a box: stop what runs in it and eject its discs first
+                    Task { await model.boxAct("Deleting \(box)…", ["delete", box]); await model.refreshStorage() }
+                } else if let item = toTrash {
                     do {
                         try FileManager.default.trashItem(at: URL(fileURLWithPath: item.path), resultingItemURL: nil)
                         model.show("Moved \(item.name) to the Trash. Empty the Trash to free \(fmtBytes(item.size)).")
@@ -1814,6 +1842,7 @@ struct StorageView: View {
         case "Engine": return "gearshape.2"
         case "Leftovers (safe to remove)": return "sparkles"
         case "MacX folder (W:)": return "folder.fill"
+        case "Boxes": return "shippingbox"
         default: return "externaldrive"
         }
     }
