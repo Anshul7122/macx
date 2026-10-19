@@ -389,6 +389,66 @@ def process_prefixes(procs):
     return res
 
 
+# Wine's own background services, and launcher helpers that linger after their app has gone. When a Windows setup
+# has nothing else running, it's idle and gets shut down (otherwise a stray helper keeps ~12 processes alive).
+WINE_SYSTEM = {"services.exe", "winedevice.exe", "plugplay.exe", "svchost.exe", "explorer.exe", "rpcss.exe",
+               "lsass.exe", "conhost.exe", "start.exe", "wineboot.exe", "winemenubuilder.exe", "tabtip.exe"}
+LEFTOVER_HELPERS = {"steamwebhelper.exe", "steamwebhelper_real.exe", "steamservice.exe", "socialclubhelper.exe",
+                    "socialclubhelper_real.exe", "rockstarservice.exe", "rockstarerrorhandler.exe",
+                    "crashpad_handler.exe", "gameoverlayui.exe", "gameoverlayui64.exe", "steamerrorreporter.exe",
+                    "steamerrorreporter64.exe"}
+IDLE_FILE = os.path.join(ROOT, "idle.json")
+IDLE_AFTER = 20   # seconds with nothing but services/helpers before a setup is shut down
+
+
+def shutdown_prefix(pfx, pids):
+    """Ends everything in one Windows setup: Wine's own shutdown first, then whatever is left."""
+    env = wine_env({"WINEPREFIX": pfx}, "d3dmetal" if engine_ok("d3dmetal") else "wine11")
+    subprocess.run([ENGINES["d3dmetal" if engine_ok("d3dmetal") else "wine11"]["server"], "-k"], env=env,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    time.sleep(1)
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
+def reap_idle(procs, owner, after=IDLE_AFTER, only=None):
+    """Shuts down Windows setups (the shared one and boxes) in which only Wine's services and leftover launcher
+    helpers have been running for `after` seconds. Called with every status check."""
+    try:
+        with open(IDLE_FILE) as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        state = {}
+    by = {}
+    for p in procs:
+        if p["pid"] in owner:
+            by.setdefault(owner[p["pid"]], []).append(p)
+    now, new, stopped = time.time(), {}, False
+    for pfx, ps in by.items():
+        if only and pfx != only:
+            continue
+        names = {p["exe"].lower() for p in ps if p["exe"] != "wineserver"}
+        if names - WINE_SYSTEM - LEFTOVER_HELPERS:
+            continue                       # a real program (game, launcher, installer, Steam) is running
+        since = state.get(pfx, now)
+        if now - since >= after:
+            shutdown_prefix(pfx, [p["pid"] for p in ps])
+            stopped = True
+        else:
+            new[pfx] = since
+    if new != state:
+        try:
+            with open(IDLE_FILE + ".tmp", "w") as f:
+                json.dump(new, f)
+            os.replace(IDLE_FILE + ".tmp", IDLE_FILE)
+        except OSError:
+            pass
+    return stopped
+
+
 def box_pids(procs):
     """pids (of these Wine processes) that run inside a MacX box rather than the shared setup."""
     shared = os.path.realpath(PREFIX)
@@ -563,7 +623,13 @@ def engines_data():
 
 
 def status_data():
-    procs = shared_processes()
+    allp = wine_processes()
+    owner = process_prefixes(allp)
+    if reap_idle(allp, owner):
+        allp = wine_processes()
+        owner = process_prefixes(allp)
+    shared = os.path.realpath(PREFIX)
+    procs = [p for p in allp if owner.get(p["pid"], shared) == shared]
     st = os.statvfs(HOME)
     cfg = load_config()
     running_games = []
@@ -708,6 +774,10 @@ def cmd_steam(action):
         clean = stop_steam()
         if not clean:
             kill_all()
+        else:   # Steam is gone: close what it leaves behind (its helpers, Rockstar's) unless a game still runs
+            time.sleep(2)
+            allp = wine_processes()
+            reap_idle(allp, process_prefixes(allp), after=0, only=os.path.realpath(PREFIX))
         return out({"message": "Steam closed." if clean else "Steam didn't close in time, so it was force-quit."})
     if action == "restart":
         if not stop_steam():

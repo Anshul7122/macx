@@ -192,6 +192,9 @@ same folder**. Then delete the download package, keep the game folder, press Pla
 | **Black 3D scenes** (Superposition, Heaven's shader errors) | Wine compiled the games' shaders with its own incomplete compiler instead of Microsoft's, which the games ship. | Games' own compiler is always preferred. |
 | **Benchmark stopping at once** | A game started by its launcher didn't become the active window (newer macOS rule). | Not yet automatic: click once into the game window. |
 
+| **Wine processes left running when idle** | After Steam closed, Rockstar's Social Club helper stayed behind, and while anything Windows runs, Wine keeps ~10 background services alive. | Any Windows setup (the shared one or a box) where only Wine's services and leftover launcher helpers have run for 20 s is shut down completely; Stop Steam does it at once. |
+| **"Deleted GTA but the space didn't come back"** | The GTA Box copy *shared* GTA's files with your original install (that's why it cost no space). Uninstalling the original freed nothing while the box still held them, and a box moved to the Trash stays on disk until the Trash is emptied. | Explained when you delete a box; **empty the Trash** to get the ~100 GB back. (macOS doesn't let apps look inside the Trash, so MacX can't show its size.) |
+
 Still open: Game Mode doesn't engage for Windows games; the older *MacX Drive* page and Boxes overlap and should
 merge; folder sizes count files shared between boxes in full.
 

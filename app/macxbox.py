@@ -1455,8 +1455,12 @@ def main(argv):
     if cmd == "set-engine":
         return set_item(a[0], a[1], "engine", a[2])
     if cmd == "delete":
+        cloned = load_box(a[0]).get("clonedFrom")
         delete_box(a[0])
-        return {"message": "Moved “%s” to the Trash." % a[0]}
+        msg = "Moved “%s” to the Trash. Its space is freed when you empty the Trash." % a[0]
+        if cloned:
+            msg += " (It shared its files with your original setup, so only what changed in it, or files you have since removed from the original, come back.)"
+        return {"message": msg}
     if cmd == "rename":
         rename_box(a[0], a[1])
         return {"message": "Renamed to “%s”." % a[1]}
