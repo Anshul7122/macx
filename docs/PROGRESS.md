@@ -62,7 +62,9 @@ finish with a plain-language report (docs/REPORT-0.2.md).
       callback), and log the WOW64_CONTEXT set at that call. Auto-mode safety checks block binary-patching /
       inspecting the Wine engine, so this needs the user's explicit permission rule. Fallback today: innoextract
       for plain Inno installers (not for repacks with their own compression).
-- [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
+- [x] 2026-10-20: work paused. Pushed to GitHub as the unreleased branch `feature/boxes` (no release, not merged).
+      The user's Mac is back on MacX 0.1.1 (Steam page works as before); the engines are the originals.
+- [ ] Release 0.2.0 — only after the old-installer crash is fixed or worked around
 - [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 
 ## Rules

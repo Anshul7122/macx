@@ -36,7 +36,7 @@ python3 "$REPO/engine/tests/mxpack.py" "$W/racer" "Metal Racer" "MetalRacer.exe"
 # extras real repacks ship: a checksum tool in MD5\ and a verify script (MacX must still see an installer)
 mkdir -p "$F/Metal Racer (repack)/MD5"
 cp "$T/dx11test32.exe" "$F/Metal Racer (repack)/MD5/QuickSFV.EXE"
-printf '@echo off\r\ncd MD5\r\nQuickSFV.EXE fitgirl-bins.md5\r\n' > "$F/Metal Racer (repack)/Verify BIN files before installation.bat"
+printf '@echo off\r\ncd MD5\r\nQuickSFV.EXE bins.md5\r\n' > "$F/Metal Racer (repack)/Verify BIN files before installation.bat"
 
 # 2. Disc image with an autorun setup.
 mkdir -p "$W/retro-game" "$W/retro-disc"

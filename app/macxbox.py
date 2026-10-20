@@ -1220,7 +1220,7 @@ def inno_unpack(name, exe, label):
 
 
 def game_folder_name(label):
-    """'Some Game [FitGirl Repack]' / 'setup_some_game_1.2' -> a plain folder name for the installed game."""
+    """'Some Game [Repack]' / 'setup_some_game_1.2' -> a plain folder name for the installed game."""
     n = re.sub(r"\[.*?\]|\(.*?\)|\{.*?\}", " ", label)
     n = re.sub(r"(?i)(?<![a-z])v?\d+(\.\d+)+", " ", n)          # version numbers
     n = re.sub(r"[_.]+", " ", n)

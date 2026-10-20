@@ -1,5 +1,12 @@
 # MacX
 
+> **⚠️ Unreleased work in progress (branch `feature/boxes`, version 0.2.0).** This is *not* the current
+> release. Use **[MacX 0.1.1](https://github.com/Anshul7122/macx/releases)** from the `main` branch to play.
+> Known problems on this branch: many older 32-bit installers (Inno Setup 5, which most repacks use) crash
+> under Wine 11 on Rosetta; games started by a launcher sometimes need a click into their window; macOS Game
+> Mode doesn't switch on for Windows games. Details: [docs/PROGRESS.md](docs/PROGRESS.md) and
+> [docs/REPORT-0.2.md](docs/REPORT-0.2.md).
+
 Run Windows games and apps on Apple silicon Macs, including **DirectX 12** games, through
 **upstream Wine 11 + Apple's D3DMetal**.
 
