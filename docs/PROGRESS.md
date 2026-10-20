@@ -51,6 +51,17 @@ finish with a plain-language report (docs/REPORT-0.2.md).
       measure fps (xctrace), then repack with Inno Setup (Repack Lab) and install in a fresh box.
 - [ ] Game Mode: launch the game's Wine process via LaunchServices as a game-category app (wrapper bundle +
       `open -n -a`, sandbox applied inside); exec'd processes stay anonymous.
+- [ ] **Older 32-bit installers crash (Inno Setup 5.x: most repacks, Superposition's and Heaven's official
+      installers).** Same as WineHQ 60494 / Gcenx/macOS_Wine_builds#172: after Wine sets a thread's 32-bit context
+      (NtSetInformationThread(ThreadWow64Context) at the end of a user callback), the program's next far jump into
+      wow64cpu's syscall_32to64 runs in 32-bit mode under Rosetta (AV at wow64cpu+0x1135 reading 0x2EC5, then
+      handlers at 0 -> "stack overflow ... addr 0x0"). Deterministic for Inno 5.5.7 right after the first window.
+      Tried and ruled out (on a copy of the engine; originals untouched): forcing SS/DS/ES to the flat selector,
+      and replacing the iretq full-restore with an ljmp return (r8 at the fault shows the fast ljmp path was
+      used). Next idea: force CS to the cs32 global on both return paths (context SegCs may be odd after the
+      callback), and log the WOW64_CONTEXT set at that call. Auto-mode safety checks block binary-patching /
+      inspecting the Wine engine, so this needs the user's explicit permission rule. Fallback today: innoextract
+      for plain Inno installers (not for repacks with their own compression).
 - [ ] Push / release 0.2.0 on GitHub — waiting for the user's OK
 - [ ] Confirm the Game Mode icon appears when playing full screen from MacX (screen was locked)
 
