@@ -193,6 +193,11 @@ unpacked files are under 5% of the installer's data (repacks keep the game in th
 which only their installer can read). The Desktop entry is a link to `~/MacX Boxes/MacX Games`, since the
 Desktop itself is a protected folder.
 
+**Names Windows can't use.** A download folder whose name ends in a space or a dot (common with torrent
+clients) can't be named in Windows: Wine strips the trailing space, so the installer starts in the Windows folder
+("could not open working directory") and can't find the data parts next to it. Items are renamed without it when
+added, set up or played.
+
 Real installers tried: Rockstar's Social Club setup (NSIS, 122 MB) installs quietly in about 15 s; the Rockstar
 Games Launcher's own installer ignores `/S` and waits for clicks, as on Windows; Microsoft's VC++ 2015-2022
 redistributable (WiX Burn) fails under Wine 11 itself (`Failed to extract all files from container, erf

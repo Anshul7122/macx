@@ -424,6 +424,28 @@ def new_machine_guid(pfx):
     os.replace(reg + ".tmp", reg)   # replaces the clone's copy only; the template keeps its own file
 
 
+def windows_name(n):
+    """Windows can't have a file or folder name ending in a space or a dot (Wine strips them, so the path then
+    points nowhere). Downloads sometimes have them, e.g. 'Some Game ' from a torrent."""
+    return n.rstrip(" .") or n
+
+
+def make_windows_safe(name, entry):
+    """Renames a top-level item of the box whose name Windows can't use; returns the (new) name."""
+    fixed = windows_name(entry)
+    if fixed == entry:
+        return entry
+    dest = unique_path(box_path(name), fixed)
+    os.rename(os.path.join(box_path(name), entry), dest)
+    data, st = load_box(name), load_state(name)
+    for store in (data["items"], st["items"]):
+        if entry in store:
+            store[os.path.basename(dest)] = store.pop(entry)
+    save_box(name, data)
+    save_state(name, st)
+    return os.path.basename(dest)
+
+
 def add_files(name, paths):
     """Copies files/folders into the box (APFS clones when on the same disk, so big games copy instantly)."""
     check_box(name)
@@ -434,7 +456,7 @@ def add_files(name, paths):
             M.fail("Not found: %s" % p)
         if os.path.realpath(p).startswith(os.path.realpath(box_path(name)) + os.sep):
             continue   # already in this box
-        dest = unique_path(box_path(name), os.path.basename(p.rstrip("/")))
+        dest = unique_path(box_path(name), windows_name(os.path.basename(p.rstrip("/"))))
         r = subprocess.run(["cp", "-cR", p, dest], stderr=subprocess.PIPE)
         if r.returncode != 0:
             r = subprocess.run(["cp", "-R", p, dest], stderr=subprocess.PIPE)   # other disk: a real copy
@@ -997,6 +1019,8 @@ def find(name, item_id):
 
 def play(name, item_id, extra_args=None):
     check_box(name)
+    if os.path.lexists(os.path.join(box_path(name), item_id)):
+        item_id = make_windows_safe(name, item_id)
     it = find(name, item_id)
     if it["running"]:
         return {"message": "%s is already running." % it["name"]}
@@ -1289,6 +1313,7 @@ def work(name, ids):
 
     while queue:
         iid = queue.pop(0)
+        iid = make_windows_safe(name, iid) if os.path.lexists(os.path.join(box_path(name), iid)) else iid
         it = next((f for f in box_view(name)["files"] if f["id"] == iid), None)
         if not it:
             continue
