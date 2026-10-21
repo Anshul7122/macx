@@ -312,6 +312,38 @@ def wine_processes():
     return procs
 
 
+def _age(etime):
+    """ps etime ([[dd-]hh:]mm:ss) -> seconds."""
+    days, _, rest = etime.strip().rpartition("-")
+    secs = 0
+    for part in rest.split(":"):
+        secs = secs * 60 + int(part or 0)
+    return secs + int(days or 0) * 86400
+
+
+def clean_stuck(procs=None, min_age=30):
+    """Close Windows programs left behind after their wineserver died (e.g. it was force-quit or crashed).
+    Without the server they can never do anything again: a Steam window stays frozen, and neither Steam's own
+    shutdown nor `wineserver -k` can reach them. Only runs when no wineserver is up at all, only touches
+    processes older than min_age seconds (so a program that is just starting is safe) and only this install's
+    engines. Returns the closed processes' names."""
+    procs = procs if procs is not None else wine_processes()
+    if not procs or any(p["exe"] == "wineserver" for p in procs):
+        return []
+    ages = _ps("etime")
+    old = [p for p in procs if _age(ages.get(p["pid"], "0")) >= min_age]
+    mine = set(own_engine_pids([p["pid"] for p in old]))
+    closed = []
+    for p in old:
+        if p["pid"] in mine:
+            try:
+                os.kill(p["pid"], signal.SIGKILL)
+                closed.append(p["exe"])
+            except OSError:
+                pass
+    return closed
+
+
 def steam_running(procs=None):
     procs = procs if procs is not None else wine_processes()
     return any(p["exe"].lower() == "steam.exe" for p in procs)
@@ -474,6 +506,8 @@ def engines_data():
 
 def status_data():
     procs = wine_processes()
+    if clean_stuck(procs):
+        procs = wine_processes()
     st = os.statvfs(HOME)
     cfg = load_config()
     running_games = []
@@ -612,9 +646,12 @@ def cmd_steam(action):
         start_steam()
         return out({"message": "Starting Steam (takes ~30 seconds)."})
     if action == "stop":
+        stuck = clean_stuck(min_age=0)
         clean = stop_steam()
         if not clean:
             kill_all()
+        if stuck and clean:
+            return out({"message": "Closed a frozen Steam window that was left behind."})
         return out({"message": "Steam closed." if clean else "Steam didn't close in time, so it was force-quit."})
     if action == "restart":
         if not stop_steam():
