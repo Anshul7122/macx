@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacX: Windows games on Apple silicon</title>
+  <meta name="description" content="MacX runs Windows games and apps on Apple silicon Macs, including DirectX 12, through upstream Wine 11 and Apple's D3DMetal. Free and open source.">
+  <meta name="theme-color" content="#07080f">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://anshul7122.github.io/macx/">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MacX: Windows games on Apple silicon, DirectX 12 included">
+  <meta property="og:description" content="GTA V Enhanced at 45–48 fps on High, on a fanless MacBook Air M4. Free and open source.">
+  <meta property="og:url" content="https://anshul7122.github.io/macx/">
+  <meta property="og:image" content="https://anshul7122.github.io/macx/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js')</script>
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav" id="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="MacX home">
+        <img src="assets/logo.svg" alt="" width="28" height="28">
+        <span>MacX</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#watch">Watch</a>
+        <a href="#performance">Performance</a>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/Anshul7122/macx" aria-label="MacX on GitHub">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span class="hide-sm">GitHub</span>
+        </a>
+        <a class="btn btn-primary btn-sm" href="#install">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============================================================ hero -->
+    <section class="hero" id="top">
+      <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="dot"></span> Free &amp; open source · Apple silicon</p>
+          <h1>Windows games on your Mac. <span class="grad">DirectX&nbsp;12 included.</span></h1>
+          <p class="lede">MacX runs Windows games and apps on Apple silicon through upstream <strong>Wine&nbsp;11</strong> and Apple's <strong>D3DMetal</strong>. Drop a game in a folder, press Play.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary btn-lg" data-download href="https://github.com/Anshul7122/macx/releases/latest">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.6 2.25 2.75 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.31-.89-2.33-3.53ZM14.18 6.13c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.92 2.69.98.08 1.98-.5 2.58-1.23Z"/></svg>
+              <span>Download for Mac</span>
+            </a>
+            <a class="btn btn-ghost btn-lg" href="#watch">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14Z"/></svg>
+              <span>Watch GTA V run</span>
+            </a>
+          </div>
+          <p class="meta" data-release-meta>macOS 14 or newer · Apple silicon · <a href="https://github.com/Anshul7122/macx/releases">All releases</a></p>
+        </div>
+
+        <!-- Illustration of the MacX window (labels match the real app) -->
+        <figure class="hero-visual" aria-label="Illustration of the MacX app with GTA V Enhanced selected">
+          <div class="window">
+            <div class="titlebar"><i></i><i></i><i></i></div>
+            <div class="win-body">
+              <aside class="sidebar" aria-hidden="true">
+                <span>This PC</span><span>MacX Drive</span><span>Programs</span>
+                <span class="sel">Steam</span><span>Storage</span><span>Tools</span><span>Help</span>
+                <div class="pills"><b>Wine 11</b><b>D3DMetal</b></div>
+              </aside>
+              <div class="pane">
+                <div class="game-art" aria-hidden="true">
+                  <span class="art-title">GTA V</span><span class="art-sub">Enhanced</span>
+                </div>
+                <h3>Grand Theft Auto V Enhanced</h3>
+                <p class="pane-meta">Steam · DirectX 12</p>
+                <div class="pane-row"><span>Graphics</span><span class="chip">D3DMetal</span></div>
+                <div class="pane-row"><span>Translation</span><span>DirectX 12 → Metal</span></div>
+                <div class="pane-row"><span>Engine</span><span>Wine 11.18</span></div>
+                <div class="play">▶&nbsp; Play</div>
+              </div>
+            </div>
+          </div>
+          <div class="hud" aria-hidden="true">
+            <span class="hud-fps"><b data-fps>47</b> fps</span>
+            <span class="hud-sub">High preset · M4 Air</span>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============================================================ video -->
+    <section class="section" id="watch">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker">Watch it run</p>
+          <h2>GTA V Enhanced on a MacBook&nbsp;Air.</h2>
+          <p>Recorded on our own MacBook Air: DirectX 12, High preset, launched through Steam for Windows.</p>
+        </header>
+        <!-- Set data-youtube-id to the video ID (the part after watch?v=) -->
+        <div class="video reveal" data-youtube-id="" data-title="GTA V Enhanced on MacX, MacBook Air M4">
+          <div class="video-soon">
+            <span class="play-ring" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14Z"/></svg></span>
+            <strong>Gameplay recording coming soon</strong>
+            <span>GTA V Enhanced · High · MacBook Air M4</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ performance -->
+    <section class="section" id="performance">
+      <div class="wrap perf">
+        <div class="perf-big reveal">
+          <p class="kicker">Measured, not estimated</p>
+          <div class="fps-figure"><span class="grad">45–48</span><small>fps</small></div>
+          <p class="perf-line">Consistent, with no significant frame drops. Very playable.</p>
+          <div class="gauge" role="img" aria-label="Frame rate held between 45 and 48 fps on a 0 to 60 fps scale">
+            <div class="gauge-track"><div class="gauge-band" style="--from:45;--to:48"></div></div>
+            <div class="gauge-scale"><span>0</span><span>15</span><span>30</span><span>45</span><span>60 fps</span></div>
+          </div>
+        </div>
+        <dl class="spec reveal">
+          <div><dt>Game</dt><dd>Grand Theft Auto V Enhanced, Story Mode</dd></div>
+          <div><dt>Graphics API</dt><dd>DirectX 12 → Metal via Apple's D3DMetal</dd></div>
+          <div><dt>Quality</dt><dd>High preset</dd></div>
+          <div><dt>Frame rate</dt><dd>45–48 fps, steady</dd></div>
+          <div><dt>Mac</dt><dd>MacBook Air, Apple M4, 16 GB, no fan</dd></div>
+          <div><dt>Launcher</dt><dd>Steam for Windows + Rockstar Games Launcher</dd></div>
+          <div><dt>Also tested</dt><dd>DirectX 11 &amp; 12 test programs at the display's 120 Hz cap</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ============================================================ features -->
+    <section class="section" id="features">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker">Features</p>
+          <h2>Feels like a Windows PC. Lives on your Mac.</h2>
+        </header>
+        <div class="cards">
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" /></svg></div>
+            <h3>DirectX 12 → Metal</h3>
+            <p>Apple's D3DMetal bridged onto upstream Wine 11. Until now it only ran inside CrossOver or Game Porting Toolkit's old Wine 7.7.</p>
+          </article>
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5" /></svg></div>
+            <h3>DirectX 9, 10 &amp; 11</h3>
+            <p>DXMT translates DirectX 11 straight to Metal; DXVK goes through Vulkan and MoltenVK. Pick either per game.</p>
+          </article>
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></div>
+            <h3>A Windows drive on your Desktop</h3>
+            <p>A <em>MacX</em> folder on your Desktop is drive <b>W:</b> in Windows. Drop in a game folder, <code>.exe</code>, installer, <code>.iso</code> or <code>.zip</code> and it's ready to play, install, mount or unpack.</p>
+          </article>
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 12h4M8 10v4 M15 11h.01 M17 13h.01 M7 6h10a5 5 0 0 1 5 5v2a5 5 0 0 1-5 5h-.5l-2-2h-5l-2 2H7a5 5 0 0 1-5-5v-2a5 5 0 0 1 5-5z" /></svg></div>
+            <h3>Steam &amp; launchers that work</h3>
+            <p>Steam for Windows, the Rockstar Games Launcher and other Chromium-based launchers, with their window-drawing quirks fixed.</p>
+          </article>
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M16 4v4 M10 10v4 M18 16v4" /></svg></div>
+            <h3>Smart per-game defaults</h3>
+            <p>MacX reads which DirectX version each program uses and picks the right engine. Override engine, graphics and launch options per game.</p>
+          </article>
+          <article class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-8 M14 8h6v6" /></svg></div>
+            <h3>FPS overlay built in</h3>
+            <p>Flip on Apple's Metal HUD from <em>This PC</em> to see frame rate and frame times in any game. Check &amp; repair keeps the setup healthy after updates.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ how it works -->
+    <section class="section" id="how">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker">How it works</p>
+          <h2>Six gaps between Wine 11 and D3DMetal. Six bridges.</h2>
+          <p>D3DMetal is built for CrossOver-style Wine. Upstream Wine 11 differs in four places; GTA V Enhanced needed two more fixes. Every one is in the open.</p>
+        </header>
+        <ol class="steps">
+          <li class="reveal"><span class="n">1</span><div><h3>A removed Wine function</h3><p>D3DMetal imports <code>__wine_unix_call</code>, which Wine 11 dropped. A tiny <code>ntdlx.dll</code> brings it back, and D3DMetal's import tables are patched to use it.</p></div></li>
+          <li class="reveal"><span class="n">2</span><div><h3>The Mac driver's function table</h3><p>D3DMetal looks for CrossOver's <code>macdrv_functions</code> table. A Wine patch exports the full 10-slot table in the layout it expects.</p></div></li>
+          <li class="reveal"><span class="n">3</span><div><h3>The thread register (GSBASE)</h3><p>The hard one. Wine 11 switches <code>%gs</code> to the Windows TEB; D3DMetal's native code needs it on macOS's TSD. A patched ntdll runs in "CrossOver mode".</p></div></li>
+          <li class="reveal"><span class="n">4</span><div><h3>Shared state</h3><p>Every D3DMetal <code>.so</code> is the same library. Symlinks, not copies, so <code>dxgi</code> and <code>d3d12</code> share one dispatch table.</p></div></li>
+          <li class="reveal"><span class="n">5</span><div><h3>The DirectX 12 Agility SDK</h3><p>GTA V Enhanced wants <code>D3D12GetInterface</code> and a loaded <code>d3d12core.dll</code>. A <code>d3d12.dll</code> wrapper provides both.</p></div></li>
+          <li class="reveal"><span class="n">6</span><div><h3>Overlay hook validation</h3><p>Rockstar's overlay checks that queue methods are real Windows memory. The wrapper points them at forwarding thunks that pass the check.</p></div></li>
+        </ol>
+        <p class="center"><a class="link-arrow" href="https://github.com/Anshul7122/macx/blob/main/docs/HOW-IT-WORKS.md">Read the full write-up</a></p>
+      </div>
+    </section>
+
+    <!-- ============================================================ install -->
+    <section class="section" id="install">
+      <div class="wrap install">
+        <header class="section-head">
+          <p class="kicker">Install</p>
+          <h2>Four steps, once.</h2>
+        </header>
+
+        <div class="install-grid">
+          <aside class="req reveal">
+            <h3>You'll need</h3>
+            <ul class="checks">
+              <li>An Apple silicon Mac (M1 or later)</li>
+              <li>macOS 14 Sonoma or newer</li>
+              <li>Rosetta 2</li>
+              <li>About 4 GB free, plus room for your games</li>
+              <li>Apple's Game Porting Toolkit (free), which supplies D3DMetal</li>
+            </ul>
+            <p class="fine">MacX never downloads or ships anything from Apple. D3DMetal is copied from <em>your</em> Game Porting Toolkit install.</p>
+          </aside>
+
+          <ol class="install-steps">
+            <li class="reveal">
+              <h3>Install Game Porting Toolkit and Rosetta</h3>
+              <p>With <a href="https://brew.sh">Homebrew</a>, in Terminal. This puts <em>Game Porting Toolkit.app</em> in Applications, where MacX looks for it.</p>
+              <div class="code"><code>softwareupdate --install-rosetta --agree-to-license
+brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" type="button" aria-label="Copy commands">Copy</button></div>
+            </li>
+            <li class="reveal">
+              <h3>Download MacX</h3>
+              <p>Open the <code>.dmg</code> and drag <b>MacX</b> to Applications.</p>
+              <a class="btn btn-primary" data-download href="https://github.com/Anshul7122/macx/releases/latest">Download for Mac</a>
+              <p class="fine" data-release-sha></p>
+            </li>
+            <li class="reveal">
+              <h3>Open it the first time</h3>
+              <p>MacX is free, so it isn't notarized by Apple (that needs a paid developer account), and macOS warns once.</p>
+              <ul class="os">
+                <li><b>macOS 15 Sequoia and newer:</b> open MacX, click <em>Done</em>, then go to <em>System Settings → Privacy &amp; Security</em>, scroll down and click <em>Open Anyway</em>.</li>
+                <li><b>macOS 14 Sonoma:</b> right-click MacX → <em>Open</em> → <em>Open</em>.</li>
+              </ul>
+              <p>Still blocked? Run this once:</p>
+              <div class="code"><code>xattr -dr com.apple.quarantine /Applications/MacX.app</code><button class="copy" type="button" aria-label="Copy command">Copy</button></div>
+            </li>
+            <li class="reveal">
+              <h3>Let setup finish, then play</h3>
+              <p>The setup screen checks your Mac and installs the engines (a few minutes, about 1.5&nbsp;GB, all pinned and checksum-verified). Then start Steam from the <em>Steam</em> tab, or drop a game into the <em>MacX</em> folder on your Desktop. For DirectX 12 games, MacX picks D3DMetal automatically.</p>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ faq -->
+    <section class="section" id="faq">
+      <div class="wrap narrow">
+        <header class="section-head">
+          <p class="kicker">FAQ</p>
+          <h2>Questions, answered.</h2>
+        </header>
+        <div class="faq">
+          <details class="reveal">
+            <summary>Is MacX free?</summary>
+            <p>Yes. MacX is free and open source under the MIT license. The engines it builds on (Wine, DXVK, DXMT) are open source too.</p>
+          </details>
+          <details class="reveal">
+            <summary>Why do I need Apple's Game Porting Toolkit?</summary>
+            <p>D3DMetal, Apple's DirectX 12 → Metal translator, comes with Game Porting Toolkit and can't be redistributed. MacX imports it from your own install on first setup. DirectX 9–11 games can also run on DXMT or DXVK.</p>
+          </details>
+          <details class="reveal">
+            <summary>Is it safe to run?</summary>
+            <p>All of MacX's code is public on GitHub. Its downloads (Gcenx's Wine 11 build, DXVK-macOS, DXMT) are pinned to exact versions and checked against SHA-256 checksums before use. Each release lists the <code>.dmg</code>'s checksum so you can verify it.</p>
+          </details>
+          <details class="reveal">
+            <summary>Why does macOS warn me when I open it?</summary>
+            <p>Apple only skips that warning for apps notarized through a paid developer account. MacX is ad-hoc signed instead. The steps above let it open; you only need to do it once.</p>
+          </details>
+          <details class="reveal">
+            <summary>Which games work?</summary>
+            <p>GTA V Enhanced (DirectX 12, via Steam) is tested end to end. Many DirectX 9–12 games that run on Wine or CrossOver should work. Anti-cheat that needs a Windows kernel driver won't. Tell us what you try on <a href="https://github.com/Anshul7122/macx/issues">GitHub Issues</a>.</p>
+          </details>
+          <details class="reveal">
+            <summary>Will it work on an Intel Mac?</summary>
+            <p>No. D3DMetal and MacX's engine target Apple silicon (M1 and later).</p>
+          </details>
+          <details class="reveal">
+            <summary>How do I see my frame rate?</summary>
+            <p>Turn on <em>Show FPS overlay in games</em> in MacX's <em>This PC</em> tab. It uses Apple's Metal HUD, the same overlay used for our GTA V numbers.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ final cta -->
+    <section class="section final">
+      <div class="wrap final-inner reveal">
+        <img src="assets/logo.svg" alt="" width="72" height="72">
+        <h2>Your Mac can play that.</h2>
+        <div class="cta-row center">
+          <a class="btn btn-primary btn-lg" data-download href="https://github.com/Anshul7122/macx/releases/latest">Download MacX</a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/Anshul7122/macx">Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div>
+        <a class="brand" href="#top"><img src="assets/logo.svg" alt="" width="22" height="22"><span>MacX</span></a>
+        <p class="fine">An independent open-source project by Anshul Chaudhary. Not affiliated with Microsoft, Apple, Valve or Rockstar Games. All trademarks belong to their owners.</p>
+      </div>
+      <div class="credits">
+        <p class="fine">Built on <a href="https://www.winehq.org">Wine</a> (LGPL), <a href="https://github.com/Gcenx/macOS_Wine_builds">Gcenx's macOS Wine builds</a>, <a href="https://github.com/Gcenx/DXVK-macOS">DXVK-macOS</a>, <a href="https://github.com/3Shain/dxmt">DXMT</a> and Apple's D3DMetal (not redistributed). GTA V Enhanced root-cause analysis by <a href="https://github.com/aprilmaccydee/gta5enhanced-mac">aprilmaccydee</a>.</p>
+        <p class="fine"><a href="https://github.com/Anshul7122/macx/blob/main/LICENSE">MIT License</a> · <a href="https://github.com/Anshul7122/macx/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a> · <a href="https://github.com/Anshul7122/macx">Source</a></p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
