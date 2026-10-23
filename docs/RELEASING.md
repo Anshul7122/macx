@@ -15,4 +15,6 @@ the same way. The website picks up the newest published release automatically.
    - *Check & repair setup* reports everything green.
 5. Write the release notes (what changed, the SHA-256 line CI added) and publish the release.
 
+To try the build without releasing anything, run **Actions → Build → Run workflow**: it builds the `.dmg` and uploads it as a workflow artifact (no release is created).
+
 Building by hand still works: `scripts/build-engine-kit.sh && scripts/build-app.sh --dmg` (see README).

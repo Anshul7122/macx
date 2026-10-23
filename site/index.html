@@ -17,9 +17,10 @@
   <meta property="og:image" content="https://anshul7122.github.io/macx/assets/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="MacX: Windows games on your Mac, DirectX 12 included. GTA V Enhanced at 45 to 48 fps on a MacBook Air M4.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="styles.css">
-  <script>document.documentElement.classList.add('js')</script>
+  <script>document.documentElement.classList.add('js');window.__jsFail=setTimeout(function(){document.documentElement.classList.remove('js')},3000)</script>
   <script src="main.js" defer></script>
 </head>
 <body>
@@ -60,7 +61,7 @@
           <p class="lede">MacX runs Windows games and apps on Apple silicon through upstream <strong>Wine&nbsp;11</strong> and Apple's <strong>D3DMetal</strong>. Drop a game in a folder, press Play.</p>
           <div class="cta-row">
             <a class="btn btn-primary btn-lg" data-download href="https://github.com/Anshul7122/macx/releases/latest">
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.6 2.25 2.75 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.31-.89-2.33-3.53ZM14.18 6.13c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.92 2.69.98.08 1.98-.5 2.58-1.23Z"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19h14"/></svg>
               <span>Download for Mac</span>
             </a>
             <a class="btn btn-ghost btn-lg" href="#watch">
@@ -68,11 +69,11 @@
               <span>Watch GTA V run</span>
             </a>
           </div>
-          <p class="meta" data-release-meta>macOS 14 or newer · Apple silicon · <a href="https://github.com/Anshul7122/macx/releases">All releases</a></p>
+          <p class="meta" data-release-meta>macOS 14 or newer · Apple silicon · needs Apple's Game Porting Toolkit (see <a href="#install">Install</a>) · <a href="https://github.com/Anshul7122/macx/releases">All releases</a></p>
         </div>
 
         <!-- Illustration of the MacX window (labels match the real app) -->
-        <figure class="hero-visual" aria-label="Illustration of the MacX app with GTA V Enhanced selected">
+        <figure class="hero-visual" aria-label="Illustration of the MacX app with GTA V Enhanced selected. The panel is a mock-up; the frame rate is our measured result.">
           <div class="window">
             <div class="titlebar"><i></i><i></i><i></i></div>
             <div class="win-body">
@@ -85,7 +86,7 @@
                 <div class="game-art" aria-hidden="true">
                   <span class="art-title">GTA V</span><span class="art-sub">Enhanced</span>
                 </div>
-                <h3>Grand Theft Auto V Enhanced</h3>
+                <p class="pane-title">Grand Theft Auto V Enhanced</p>
                 <p class="pane-meta">Steam · DirectX 12</p>
                 <div class="pane-row"><span>Graphics</span><span class="chip">D3DMetal</span></div>
                 <div class="pane-row"><span>Translation</span><span>DirectX 12 → Metal</span></div>
@@ -95,8 +96,8 @@
             </div>
           </div>
           <div class="hud" aria-hidden="true">
-            <span class="hud-fps"><b data-fps>47</b> fps</span>
-            <span class="hud-sub">High preset · M4 Air</span>
+            <span class="hud-fps"><b>45–48</b> fps</span>
+            <span class="hud-sub">High preset · M4 Air · measured</span>
           </div>
         </figure>
       </div>
@@ -124,6 +125,7 @@
     <!-- ============================================================ performance -->
     <section class="section" id="performance">
       <div class="wrap perf">
+        <h2 class="sr-only">Performance</h2>
         <div class="perf-big reveal">
           <p class="kicker">Measured, not estimated</p>
           <div class="fps-figure"><span class="grad">45–48</span><small>fps</small></div>
@@ -140,7 +142,7 @@
           <div><dt>Frame rate</dt><dd>45–48 fps, steady</dd></div>
           <div><dt>Mac</dt><dd>MacBook Air, Apple M4, 16 GB, no fan</dd></div>
           <div><dt>Launcher</dt><dd>Steam for Windows + Rockstar Games Launcher</dd></div>
-          <div><dt>Also tested</dt><dd>DirectX 11 &amp; 12 test programs at the display's 120 Hz cap</dd></div>
+          <div><dt>Also tested</dt><dd>DirectX 11 &amp; 12 test programs</dd></div>
         </dl>
       </div>
     </section>
@@ -156,7 +158,7 @@
           <article class="card reveal">
             <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" /></svg></div>
             <h3>DirectX 12 → Metal</h3>
-            <p>Apple's D3DMetal bridged onto upstream Wine 11. Until now it only ran inside CrossOver or Game Porting Toolkit's old Wine 7.7.</p>
+            <p>D3DMetal is built for CrossOver's flavor of Wine. MacX bridges it onto current, upstream Wine 11.</p>
           </article>
           <article class="card reveal">
             <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5" /></svg></div>
@@ -171,7 +173,7 @@
           <article class="card reveal">
             <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 12h4M8 10v4 M15 11h.01 M17 13h.01 M7 6h10a5 5 0 0 1 5 5v2a5 5 0 0 1-5 5h-.5l-2-2h-5l-2 2H7a5 5 0 0 1-5-5v-2a5 5 0 0 1 5-5z" /></svg></div>
             <h3>Steam &amp; launchers that work</h3>
-            <p>Steam for Windows, the Rockstar Games Launcher and other Chromium-based launchers, with their window-drawing quirks fixed.</p>
+            <p>Steam for Windows, and the Rockstar Games Launcher, with their window-drawing quirks fixed.</p>
           </article>
           <article class="card reveal">
             <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M16 4v4 M10 10v4 M18 16v4" /></svg></div>
@@ -193,7 +195,7 @@
         <header class="section-head">
           <p class="kicker">How it works</p>
           <h2>Six gaps between Wine 11 and D3DMetal. Six bridges.</h2>
-          <p>D3DMetal is built for CrossOver-style Wine. Upstream Wine 11 differs in four places; GTA V Enhanced needed two more fixes. Every one is in the open.</p>
+          <p>Apple's D3DMetal expects a differently built Wine, so MacX bridges six differences: four for D3DMetal itself, two more for GTA V Enhanced. The details are technical; every fix is in the open.</p>
         </header>
         <ol class="steps">
           <li class="reveal"><span class="n">1</span><div><h3>A removed Wine function</h3><p>D3DMetal imports <code>__wine_unix_call</code>, which Wine 11 dropped. A tiny <code>ntdlx.dll</code> brings it back, and D3DMetal's import tables are patched to use it.</p></div></li>
@@ -219,9 +221,10 @@
           <aside class="req reveal">
             <h3>You'll need</h3>
             <ul class="checks">
-              <li>An Apple silicon Mac (M1 or later)</li>
+              <li>An Apple silicon Mac (tested on an M4)</li>
               <li>macOS 14 Sonoma or newer</li>
               <li>Rosetta 2</li>
+              <li>Homebrew, which also installs Apple's Command Line Tools (MacX needs their Python&nbsp;3)</li>
               <li>About 4 GB free, plus room for your games</li>
               <li>Apple's Game Porting Toolkit (free), which supplies D3DMetal</li>
             </ul>
@@ -231,7 +234,7 @@
           <ol class="install-steps">
             <li class="reveal">
               <h3>Install Game Porting Toolkit and Rosetta</h3>
-              <p>With <a href="https://brew.sh">Homebrew</a>, in Terminal. This puts <em>Game Porting Toolkit.app</em> in Applications, where MacX looks for it.</p>
+              <p>You need <a href="https://brew.sh">Homebrew</a> first (it also installs Apple's Command Line Tools). Then, in Terminal, this puts <em>Game Porting Toolkit.app</em> (Gcenx's packaging of Apple's toolkit) in Applications, where MacX looks for it.</p>
               <div class="code"><code>softwareupdate --install-rosetta --agree-to-license
 brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" type="button" aria-label="Copy commands">Copy</button></div>
             </li>
@@ -240,6 +243,7 @@ brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" t
               <p>Open the <code>.dmg</code> and drag <b>MacX</b> to Applications.</p>
               <a class="btn btn-primary" data-download href="https://github.com/Anshul7122/macx/releases/latest">Download for Mac</a>
               <p class="fine" data-release-sha></p>
+              <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
             </li>
             <li class="reveal">
               <h3>Open it the first time</h3>
@@ -253,7 +257,7 @@ brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" t
             </li>
             <li class="reveal">
               <h3>Let setup finish, then play</h3>
-              <p>The setup screen checks your Mac and installs the engines (a few minutes, about 1.5&nbsp;GB, all pinned and checksum-verified). Then start Steam from the <em>Steam</em> tab, or drop a game into the <em>MacX</em> folder on your Desktop. For DirectX 12 games, MacX picks D3DMetal automatically.</p>
+              <p>The setup screen checks your Mac and installs the engines (a few minutes, about 1.5&nbsp;GB, all pinned and checksum-verified). Then start Steam from the <em>Steam</em> tab, or drop a game into the <em>MacX</em> folder on your Desktop (macOS may ask to let MacX use your Desktop folder; allow it). For DirectX 12 games, MacX picks D3DMetal automatically.</p>
             </li>
           </ol>
         </div>
@@ -286,7 +290,7 @@ brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" t
           </details>
           <details class="reveal">
             <summary>Which games work?</summary>
-            <p>GTA V Enhanced (DirectX 12, via Steam) is tested end to end. Many DirectX 9–12 games that run on Wine or CrossOver should work. Anti-cheat that needs a Windows kernel driver won't. Tell us what you try on <a href="https://github.com/Anshul7122/macx/issues">GitHub Issues</a>.</p>
+            <p>GTA V Enhanced (DirectX 12, via Steam) is the game tested end to end, plus DirectX 11 and 12 test programs. Other games may or may not work. Anti-cheat that needs a Windows kernel driver won't. Tell us what you try on <a href="https://github.com/Anshul7122/macx/issues">GitHub Issues</a>.</p>
           </details>
           <details class="reveal">
             <summary>Will it work on an Intel Mac?</summary>
@@ -294,7 +298,7 @@ brew install --cask gcenx/wine/game-porting-toolkit</code><button class="copy" t
           </details>
           <details class="reveal">
             <summary>How do I see my frame rate?</summary>
-            <p>Turn on <em>Show FPS overlay in games</em> in MacX's <em>This PC</em> tab. It uses Apple's Metal HUD, the same overlay used for our GTA V numbers.</p>
+            <p>Turn on <em>Show FPS overlay in games</em> in MacX's <em>This PC</em> tab. It uses Apple's Metal HUD, and takes effect the next time Steam starts.</p>
           </details>
         </div>
       </div>

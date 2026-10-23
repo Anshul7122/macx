@@ -4,7 +4,7 @@ Run Windows games and apps on Apple silicon Macs, including **DirectX 12** games
 **upstream Wine 11 + Apple's D3DMetal**.
 
 - **DirectX 12 → Metal** via Apple's D3DMetal (from the Game Porting Toolkit), bridged onto an upstream
-  Wine 11 build. Until now D3DMetal only ran inside CrossOver or Game Porting Toolkit's old Wine 7.7.
+  Wine 11 build. D3DMetal is built for CrossOver's flavor of Wine; MacX bridges it onto current upstream Wine 11.
 - **DirectX 9–11** via DXMT (DirectX 11 → Metal) or DXVK (→ Vulkan → MoltenVK).
 - **A Windows drive on your Desktop.** A *MacX* folder appears on the Desktop and shows up inside Windows as
   drive **W:**. Drop a game folder, `.exe`, installer, `.iso` or `.zip` into it and it shows up in
@@ -14,7 +14,7 @@ Run Windows games and apps on Apple silicon Macs, including **DirectX 12** games
   program uses.
 
 **Tested:** GTA V Enhanced (DirectX 12, Steam), Story Mode, **High preset, a steady 45–48 fps** without significant
-drops on a **MacBook Air M4, 16 GB**, plus DirectX 11 and 12 test programs at the display's 120 Hz cap.
+drops on a **MacBook Air M4, 16 GB**, plus DirectX 11 and 12 test programs.
 
 **Website:** <https://anshul7122.github.io/macx/>
 
@@ -50,7 +50,7 @@ residency and overlay hook validation. Read **[docs/HOW-IT-WORKS.md](docs/HOW-IT
 ## Build from source
 
 ```bash
-pip3 install ziglang            # Windows-side compiler
+pip3 install ziglang==0.17.0  # Windows-side compiler
 brew install bison              # for configuring Wine
 scripts/build-engine-kit.sh     # patched Wine 11.18 libraries + bridge DLLs (compiled from source)
 scripts/build-app.sh --dmg      # dist/MacX.app and the .dmg

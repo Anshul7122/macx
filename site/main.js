@@ -1,5 +1,6 @@
 // MacX site: live release info, YouTube facade, copy buttons, small motion touches.
 (() => {
+  clearTimeout(window.__jsFail);
   const REPO = 'Anshul7122/macx';
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -17,7 +18,7 @@
         a.title = `${dmg.name} (${fmtSize(dmg.size)})`;
       });
       document.querySelectorAll('[data-release-meta]').forEach((el) => {
-        el.innerHTML = `Version ${version} · ${fmtSize(dmg.size)} · macOS 14+ · Apple silicon · ` +
+        el.innerHTML = `Version ${version} · ${fmtSize(dmg.size)} · macOS 14+ · Apple silicon · needs Apple's Game Porting Toolkit (see <a href="#install">Install</a>) · ` +
           `<a href="${rel.html_url}">Release notes</a>`;
       });
       const sha = (dmg.digest || '').replace(/^sha256:/, '') ||
@@ -30,13 +31,14 @@
   document.querySelectorAll('.video[data-youtube-id]').forEach((box) => {
     const id = box.dataset.youtubeId.trim();
     if (!/^[\w-]{11}$/.test(id)) return;
+    box.dataset.live = '1';
     const title = box.dataset.title || 'Video';
     box.innerHTML = '';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'facade';
     btn.setAttribute('aria-label', `Play: ${title}`);
-    btn.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/maxresdefault.jpg), url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`;
+    btn.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`;
     btn.innerHTML = '<span class="play-ring" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path fill="currentColor" d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14Z"/></svg></span>';
     btn.addEventListener('click', () => {
       const f = document.createElement('iframe');
@@ -49,6 +51,12 @@
     box.appendChild(btn);
   });
 
+  // ---- no video yet: hide the section and every link to it instead of showing an empty box
+  if (!document.querySelector('.video[data-live]')) {
+    document.getElementById('watch')?.setAttribute('hidden', '');
+    document.querySelectorAll('a[href="#watch"]').forEach((a) => a.setAttribute('hidden', ''));
+  }
+
   // ---- copy buttons
   document.querySelectorAll('.copy').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -56,6 +64,7 @@
       try {
         await navigator.clipboard.writeText(text);
         btn.textContent = 'Copied';
+        const st = document.getElementById('copy-status'); if (st) st.textContent = 'Copied to clipboard';
         btn.classList.add('done');
       } catch {
         btn.textContent = 'Select & copy';
@@ -83,11 +92,4 @@
     items.forEach((el) => io.observe(el));
   }
 
-  // ---- HUD ticks through the measured 45–48 fps range
-  const fps = document.querySelector('[data-fps]');
-  if (fps && !reduceMotion) {
-    const seq = [47, 46, 48, 47, 45, 46, 47, 48, 46, 47];
-    let i = 0;
-    setInterval(() => { fps.textContent = seq[i = (i + 1) % seq.length]; }, 900);
-  }
 })();
