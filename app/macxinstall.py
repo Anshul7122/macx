@@ -76,8 +76,9 @@ def preflight():
     add("4 GB free disk space", free_gb >= 4, "%.0f GB free" % free_gb)
     d3dm = os.path.isdir(os.path.join(gptk_lib(), "external", "D3DMetal.framework"))
     add("Apple Game Porting Toolkit (D3DMetal)", d3dm, W.GPTK_APP if d3dm else "not found",
-        "Install Apple's Game Porting Toolkit (free Apple ID): " + GPTK_HELP +
-        " or with Homebrew:  brew install --cask gcenx/wine/game-porting-toolkit")
+        "Install it with Homebrew (puts Game Porting Toolkit.app in Applications):  "
+        "brew install --cask gcenx/wine/game-porting-toolkit   "
+        "Apple's own download is at " + GPTK_HELP + " but MacX only detects the Applications copy.")
     kit_ok = os.path.isfile(os.path.join(W.KIT, "WINE_VERSION"))
     add("MacX engine kit", kit_ok, W.KIT, "Reinstall MacX (the kit ships inside the app).")
     return checks
